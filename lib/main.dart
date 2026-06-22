@@ -18,7 +18,7 @@ class TidalStreamApp extends StatelessWidget {
         primaryColor: const Color(0xFF0F2027),
         scaffoldBackgroundColor: const Color(0xFF203A43),
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFF2C94C), // Gold accent
+          primary: Color(0xFFF2C94C), 
           secondary: Color(0xFF2C5364),
         ),
       ),
@@ -36,8 +36,6 @@ class TidalCalculatorHomePage extends StatefulWidget {
 
 class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _formKey = GlobalKey<FormState>();
-  
-  // Controllers para sa Inputs
   final _hwRateController = TextEditingController(text: "4.5");
   final _lwRateController = TextEditingController(text: "1.2");
   final _timeFromHWController = TextEditingController(text: "3.5");
@@ -53,14 +51,12 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       double timeFromHW = double.parse(_timeFromHWController.text);
       double direction = double.parse(_directionController.text);
 
-      // Marine Formula for interpolation: Standard Cosine Curve Method
-      // Factor spans from 0 (at LW) to 1 (at HW) based on a 6-hour tidal interval
       double angle = (timeFromHW / 6.0) * pi;
       double factor = (cos(angle) + 1) / 2;
       
       setState(() {
         calculatedRate = lwRate + (factor * (hwRate - lwRate));
-        calculatedDirection = direction; // Set default or custom drift heading
+        calculatedDirection = direction;
       });
     }
   }
@@ -92,7 +88,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Marine Instrument Heading Card
                 Card(
                   color: Colors.black.withOpacity(0.4),
                   shape: RoundedRectangleBorder(
@@ -117,34 +112,14 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Inputs Section
-                _buildInputField(
-                  controller: _hwRateController,
-                  label: "High Water (HW) Rate (knots)",
-                  icon: Icons.trending_up,
-                ),
+                _buildInputField(controller: _hwRateController, label: "High Water (HW) Rate (knots)", icon: Icons.trending_up),
                 const SizedBox(height: 15),
-                _buildInputField(
-                  controller: _lwRateController,
-                  label: "Low Water (LW) Rate (knots)",
-                  icon: Icons.trending_down,
-                ),
+                _buildInputField(controller: _lwRateController, label: "Low Water (LW) Rate (knots)", icon: Icons.trending_down),
                 const SizedBox(height: 15),
-                _buildInputField(
-                  controller: _timeFromHWController,
-                  label: "Time from HW (hours, e.g., 2.5)",
-                  icon: Icons.access_time,
-                ),
+                _buildInputField(controller: _timeFromHWController, label: "Time from HW (hours)", icon: Icons.access_time),
                 const SizedBox(height: 15),
-                _buildInputField(
-                  controller: _directionController,
-                  label: "Stream Direction (degrees, 000° - 360°)",
-                  icon: Icons.navigation,
-                ),
+                _buildInputField(controller: _directionController, label: "Stream Direction (degrees)", icon: Icons.navigation),
                 const SizedBox(height: 25),
-
-                // Calculate Button
                 ElevatedButton(
                   onPressed: _calculateTidalStream,
                   style: ElevatedButton.styleFrom(
@@ -152,16 +127,10 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    elevation: 5,
                   ),
-                  child: const Text(
-                    "COMPUTE STREAM",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-                  ),
+                  child: const Text("COMPUTE STREAM", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 30),
-
-                // Results Screen Display
                 if (calculatedRate != null) ...[
                   Container(
                     padding: const EdgeInsets.all(20),
@@ -170,20 +139,11 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(color: Colors.greenAccent, width: 1.5),
                     ),
-                    child: Column(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        const Text(
-                          "CURRENT TIDAL DRIFT",
-                          style: TextStyle(fontSize: 14, color: Colors.greenAccent, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-                        ),
-                        const Divider(color: Colors.greenAccent, height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildResultColumn("ESTIMATED RATE", "${calculatedRate!.toStringAsFixed(2)} kts"),
-                            _buildResultColumn("SET / DIRECTION", "${calculatedDirection!.toStringAsFixed(0)}°"),
-                          ],
-                        ),
+                        _buildResultColumn("ESTIMATED RATE", "${calculatedRate!.toStringAsFixed(2)} kts"),
+                        _buildResultColumn("SET / DIRECTION", "${calculatedDirection!.toStringAsFixed(0)}°"),
                       ],
                     ),
                   ),
@@ -196,11 +156,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-  }) {
+  Widget _buildInputField({required TextEditingController controller, required String label, required IconData icon}) {
     return TextFormField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -209,32 +165,20 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         labelText: label,
         labelStyle: const TextStyle(color: Colors.grey),
         prefixIcon: Icon(icon, color: const Color(0xFFF2C94C)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.grey),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFF2C94C), width: 2),
-        ),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.grey)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFF2C94C), width: 2)),
         filled: true,
         fillColor: Colors.black.withOpacity(0.2),
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter a valid numeric value';
-        }
-        return null;
-      },
     );
   }
 
   Widget _buildResultColumn(String title, String value) {
     return Column(
       children: [
-        Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+        Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey)),
         const SizedBox(height: 5),
-        Text(value, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
+        Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
       ],
     );
   }
