@@ -25,12 +25,28 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Reconstruct Android Folder and Build APK
+      - name: Reconstruct Project and Inject Custom Icon
         run: |
-          # Bubuhayin nito ang nawawalang android folder sa repo mo nang ligtas
+          # 1. Bubuhayin ang android folder nang ligtas
           flutter create . --overwrite --org com.renantefullo --project-name tidal_stream
           
-          # Pagkatapos ay i-di-download ang packages at magbi-build
+          # 2. Awtomatikong ia-arrange at ikakalat ang icon mo sa android resource folders
+          if [ -f "icon.png" ]; then
+            mkdir -p android/app/src/main/res/mipmap-hdpi
+            mkdir -p android/app/src/main/res/mipmap-mdpi
+            mkdir -p android/app/src/main/res/mipmap-xhdpi
+            mkdir -p android/app/src/main/res/mipmap-xxhdpi
+            mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+            cp icon.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+            cp icon.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+            cp icon.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            cp icon.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            cp icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            echo "🚀 App Icon successfully arranged and injected!"
+          fi
+
+      - name: Build APK File
+        run: |
           flutter pub get
           flutter build apk --release
 
