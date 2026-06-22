@@ -25,8 +25,12 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Build APK File
+      - name: Reconstruct Android Folder and Build APK
         run: |
+          # Bubuhayin nito ang nawawalang android folder sa repo mo nang ligtas
+          flutter create . --overwrite --org com.renantefullo --project-name tidal_stream
+          
+          # Pagkatapos ay i-di-download ang packages at magbi-build
           flutter pub get
           flutter build apk --release
 
