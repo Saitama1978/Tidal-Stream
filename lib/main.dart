@@ -18,7 +18,7 @@ class TidalStreamApp extends StatelessWidget {
         primaryColor: const Color(0xFF0F2027),
         scaffoldBackgroundColor: const Color(0xFF203A43),
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFF2C94C), // Marine Gold
+          primary: Color(0xFFF2C94C), 
           secondary: Colors.cyanAccent,
         ),
       ),
@@ -39,9 +39,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _formKey2 = GlobalKey<FormState>();
   
   final _locationController = TextEditingController(text: "San Bernardino Strait");
-  final _locationController2 = TextEditingController(text: "Admiralty Port Reference");
+  final _locationController2 = TextEditingController(text: "Malacca Strait Entry");
   
-  // Position Coordinates
+  // Position Coordinates (Shared Bridge Data)
   final _latDegController = TextEditingController(text: "12");
   final _latMinController = TextEditingController(text: "30.75");
   String _latSign = "N";
@@ -49,49 +49,31 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _lngMinController = TextEditingController(text: "17.12");
   String _lngSign = "E";
 
-  // Tab 1 Standard Inputs (Stream Rates)
+  // Tab 1 Standard Inputs
   final _hwRateController = TextEditingController(text: "4.5");
   final _lwRateController = TextEditingController(text: "1.2");
   final _timeFromHWController = TextEditingController(text: "3.5");
   final _directionController = TextEditingController(text: "045");
 
-  // Tab 2 Tide Table Inputs (Heights and Ranges)
-  final _tableHwHeightController = TextEditingController(text: "5.0");
-  final _tableLwHeightController = TextEditingController(text: "1.0");
-  final _msrController = TextEditingController(text: "4.2"); 
-  final _mnpController = TextEditingController(text: "1.8"); 
+  // Tab 2 Advanced Dual-Interpolation Inputs (Tide Tables + Stream Tables)
+  final _tableHwHeightController = TextEditingController(text: "5.0"); // Ngayong araw (Meters)
+  final _tableLwHeightController = TextEditingController(text: "1.0"); // Ngayong araw (Meters)
+  final _msrController = TextEditingController(text: "4.2");            // Mean Spring Range (Meters)
+  final _mnpController = TextEditingController(text: "1.8");            // Mean Neap Range (Meters)
+  final _streamSpringMaxController = TextEditingController(text: "3.5"); // Max Spring Stream (Knots)
+  final _streamNeapMaxController = TextEditingController(text: "1.5");   // Max Neap Stream (Knots)
   String _harmonicType = "Semi-Diurnal"; 
 
   double? calculatedRate;
   double? calculatedDirection;
   
-  double? advancedCalculatedHeight;
+  double? advancedCalculatedRate;
   String advancedInterpolationMethod = "";
 
   List<Map<String, String>> calculationLog = [];
 
-  final List<Map<String, dynamic>> presets = [
-    {"name": "San Bernardino Strait", "latDeg": "12", "latMin": "30.75", "latSign": "N", "lngDeg": "124", "lngMin": "17.12", "lngSign": "E", "hw": "5.2", "lw": "0.8", "dir": "125"},
-    {"name": "Singapore Strait (Eastern)", "latDeg": "01", "latMin": "16.80", "latSign": "N", "lngDeg": "104", "lngMin": "06.00", "lngSign": "E", "hw": "4.2", "lw": "1.1", "dir": "075"},
-  ];
-
-  void _loadPreset(Map<String, dynamic> preset) {
-    setState(() {
-      _locationController.text = preset["name"]!;
-      _latDegController.text = preset["latDeg"]!;
-      _latMinController.text = preset["latMin"]!;
-      _latSign = preset["latSign"]!;
-      _lngDegController.text = preset["lngDeg"]!;
-      _lngMinController.text = preset["lngMin"]!;
-      _lngSign = preset["lngSign"]!;
-      _hwRateController.text = preset["hw"]!;
-      _lwRateController.text = preset["lw"]!;
-      _directionController.text = preset["dir"]!;
-    });
-  }
-
   void _calculateStandardTidalStream() {
-    if (_formKey1.currentState!.validate() && _locationController.text.isNotEmpty) {
+    if (_formKey1.currentState!.validate()) {
       double hwRate = double.parse(_hwRateController.text);
       double lwRate = double.parse(_lwRateController.text);
       double timeFromHW = double.parse(_timeFromHWController.text);
@@ -104,59 +86,57 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         calculatedRate = lwRate + (factor * (hwRate - lwRate));
         calculatedDirection = direction;
 
-        String posReadout = "${_latDegController.text}° ${_latMinController.text}' $_latSign | ${_lngDegController.text}° ${_lngMinController.text}' $_lngSign";
-
         calculationLog.insert(0, {
           "id": DateTime.now().millisecondsSinceEpoch.toString(),
           "loc": _locationController.text,
-          "pos": posReadout,
-          "result": "${calculatedRate!.toStringAsFixed(2)} kts (Drift)",
-          "time": "${timeFromHW.toStringAsFixed(1)}h fr HW"
+          "result": "${calculatedRate!.toStringAsFixed(2)} kts",
+          "type": "Standard Curve"
         });
       });
     }
   }
 
-  void _calculateAdvancedTidalHeight() {
+  void _calculateAdvancedTidalStream() {
     if (_formKey2.currentState!.validate()) {
       double hwHeight = double.parse(_tableHwHeightController.text);
       double lwHeight = double.parse(_tableLwHeightController.text);
       double msr = double.parse(_msrController.text);
       double mnp = double.parse(_mnpController.text);
+      double springMaxRate = double.parse(_streamSpringMaxController.text);
+      double neapMaxRate = double.parse(_streamNeapMaxController.text);
       double timeFromHW = double.parse(_timeFromHWController.text);
+      double direction = double.parse(_directionController.text);
 
+      // Step 1: Alamin ang range ng tide ngayong araw sa lugar
       double currentRange = (hwHeight - lwHeight).abs();
       
+      // Step 2: Interpolate gamit ang MSR at MNP kung nasaan tayo sa pagitan ng Spring at Neap
       double rangeFactor = 0.5; 
       if ((msr - mnp).abs() > 0.01) {
         rangeFactor = ((currentRange - mnp) / (msr - mnp)).clamp(0.0, 1.0);
       }
       
+      // Makuha ang Factor base sa Harmonic type ng cycle (Semi-diurnal = 6h, Diurnal = 12h)
       double periodDivider = _harmonicType == "Diurnal" ? 12.0 : 6.0;
       double angle = (timeFromHW.clamp(0.0, periodDivider) / periodDivider) * pi;
       double timeFactor = (cos(angle) + 1) / 2;
 
-      setState(() {
-        advancedCalculatedHeight = lwHeight + (timeFactor * (hwHeight - lwHeight));
-        advancedInterpolationMethod = "Range: ${currentRange.toStringAsFixed(1)}m (${(rangeFactor * 100).toStringAsFixed(0)}% Spring Factor)";
+      // Step 3: Compute ng Target Maximum Stream Rate para sa araw na ito
+      double maxRateForToday = neapMaxRate + (rangeFactor * (springMaxRate - neapMaxRate));
 
-        String posReadout = "${_latDegController.text}° ${_latMinController.text}' $_latSign | ${_lngDegController.text}° ${_lngMinController.text}' $_lngSign";
+      setState(() {
+        // Step 4: Isalang sa Cosine Factor ng Oras para makuha ang Live Hourly Drift
+        advancedCalculatedRate = maxRateForToday * timeFactor;
+        advancedInterpolationMethod = "Spring weight: ${(rangeFactor * 100).toStringAsFixed(0)}% | Factor: ${timeFactor.toStringAsFixed(2)}";
 
         calculationLog.insert(0, {
           "id": DateTime.now().millisecondsSinceEpoch.toString(),
           "loc": _locationController2.text,
-          "pos": posReadout,
-          "result": "${advancedCalculatedHeight!.toStringAsFixed(2)} m (Height)",
-          "time": "${timeFromHW.toStringAsFixed(1)}h | $_harmonicType"
+          "result": "${advancedCalculatedRate!.toStringAsFixed(2)} kts",
+          "type": "MSR/MNP Harmonic"
         });
       });
     }
-  }
-
-  void _deleteLogItem(String id) {
-    setState(() {
-      calculationLog.removeWhere((item) => item["id"] == id);
-    });
   }
 
   @override
@@ -167,7 +147,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         appBar: AppBar(
           title: const Text(
             'TIDAL STREAM WORLDWIDE',
-            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5, color: Color(0xFFF2C94C)),
+            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Color(0xFFF2C94C)),
           ),
           centerTitle: true,
           backgroundColor: const Color(0xFF0F2027),
@@ -176,8 +156,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             labelColor: Color(0xFFF2C94C),
             unselectedLabelColor: Colors.grey,
             tabs: [
-              Tab(icon: Icon(Icons.waves), text: "STREAM RATE (KTS)"),
-              Tab(icon: Icon(Icons.layers), text: "TIDE TABLE HEIGHT (M)"),
+              Tab(icon: Icon(Icons.stacked_line_chart), text: "STANDARD GRAPH"),
+              Tab(icon: Icon(Icons.領収書), text: "ADVANCED TABLES"),
             ],
           ),
         ),
@@ -212,9 +192,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildInputField(controller: _hwRateController, label: "HW Stream Rate (kts)", icon: Icons.trending_up)),
+              Expanded(child: _buildInputField(controller: _hwRateController, label: "HW Rate (kts)", icon: Icons.speed)),
               const SizedBox(width: 12),
-              Expanded(child: _buildInputField(controller: _lwRateController, label: "LW Stream Rate (kts)", icon: Icons.trending_down)),
+              Expanded(child: _buildInputField(controller: _lwRateController, label: "LW Rate (kts)", icon: Icons.shutter_speed)),
             ],
           ),
           const SizedBox(height: 12),
@@ -232,15 +212,13 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               padding: const EdgeInsets.symmetric(vertical: 14),
               backgroundColor: const Color(0xFFF2C94C),
               foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("COMPUTE STREAM VELOCITY", style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text("COMPUTE STANDARD DRIFT", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           if (calculatedRate != null) ...[
             const SizedBox(height: 20),
-            _buildGraphOutputBlock(calculatedRate!, calculatedDirection ?? 0.0),
-          ],
-          _buildLogbookBlock(),
+            _buildResultItem("ESTIMATED DRIFT", "${calculatedRate!.toStringAsFixed(2)} kts", Colors.greenAccent),
+          ]
         ],
       ),
     );
@@ -252,33 +230,43 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildInputField(controller: _locationController2, label: "Tide Table Port / Reference", icon: Icons.book, isText: true),
+          _buildInputField(controller: _locationController2, label: "Tide Station Reference", icon: Icons.book, isText: true),
           const SizedBox(height: 16),
-          _buildVesselPositionBlock(), 
-          const SizedBox(height: 16),
-          const Text("TIDE TABLE HEIGHT ENTRIES", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.cyanAccent, letterSpacing: 1)),
+          const Text("1. TIDE TABLE VERTICAL HEIGHTS (METERS)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _buildInputField(controller: _tableHwHeightController, label: "HW Height (meters)", icon: Icons.arrow_upward)),
+              Expanded(child: _buildInputField(controller: _tableHwHeightController, label: "Today HW Height (m)", icon: Icons.arrow_upward)),
               const SizedBox(width: 12),
-              Expanded(child: _buildInputField(controller: _tableLwHeightController, label: "LW Height (meters)", icon: Icons.arrow_downward)),
+              Expanded(child: _buildInputField(controller: _tableLwHeightController, label: "Today LW Height (m)", icon: Icons.arrow_downward)),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildInputField(controller: _msrController, label: "Mean Spring Range (MSR)", icon: Icons.shutter_speed)),
+              Expanded(child: _buildInputField(controller: _msrController, label: "Mean Spring Range (MSR)", icon: Icons.waves)),
               const SizedBox(width: 12),
-              Expanded(child: _buildInputField(controller: _mnpController, label: "Mean Neap Range (MNP)", icon: Icons.shutter_speed_outlined)),
+              Expanded(child: _buildInputField(controller: _mnpController, label: "Mean Neap Range (MNP)", icon: Icons.waves_outlined)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text("2. STREAM TABLE VELOCITIES (KNOTS)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _buildInputField(controller: _streamSpringMaxController, label: "Max Spring Rate (kts)", icon: Icons.bolt)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildInputField(controller: _streamNeapMaxController, label: "Max Neap Rate (kts)", icon: Icons.directions_run)),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
+              Expanded(child: _buildInputField(controller: _timeFromHWController, label: "Time from HW (hrs)", icon: Icons.access_time)),
+              const SizedBox(width: 12),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                   decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey)),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
@@ -295,31 +283,24 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: _calculateAdvancedTidalHeight,
+            onPressed: _calculateAdvancedTidalStream,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
               backgroundColor: Colors.cyanAccent,
               foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("COMPUTE TIDAL HEIGHT (HARMONIC)", style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text("COMPUTE INTERPOLATED STREAM", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
-          if (advancedCalculatedHeight != null) ...[
+          if (advancedCalculatedRate != null) ...[
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.cyanAccent, width: 1)),
+              decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.cyanAccent)),
               child: Column(
                 children: [
-                  Text(advancedInterpolationMethod, style: const TextStyle(fontSize: 12, color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildResultItem("PREDICTED HEIGHT", "${advancedCalculatedHeight!.toStringAsFixed(2)} m", Colors.white),
-                      _buildResultItem("CYCLE TYPE", _harmonicType, const Color(0xFFF2C94C)),
-                    ],
-                  ),
+                  Text(advancedInterpolationMethod, style: const TextStyle(fontSize: 12, color: Colors.yellowAccent)),
+                  const SizedBox(height: 8),
+                  _buildResultItem("CALCULATED CURRENT SPEED", "${advancedCalculatedRate!.toStringAsFixed(2)} kts", Colors.white),
                 ],
               ),
             ),
@@ -331,74 +312,11 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 
   Widget _buildVesselPositionBlock() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(flex: 3, child: _buildInputField(controller: _latDegController, label: "Lat Deg", icon: Icons.explore)),
-            const SizedBox(width: 8),
-            Expanded(flex: 4, child: _buildInputField(controller: _latMinController, label: "Lat Min", icon: Icons.timer_outlined)),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 3,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey)),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _latSign,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF0F2027),
-                    items: ["N", "S"].map((val) => DropdownMenuItem(value: val, child: Text(val, style: const TextStyle(color: Colors.white)))).toList(),
-                    onChanged: (val) => setState(() => _latSign = val!),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(flex: 3, child: _buildInputField(controller: _lngDegController, label: "Long Deg", icon: Icons.explore_outlined)),
-            const SizedBox(width: 8),
-            Expanded(flex: 4, child: _buildInputField(controller: _lngMinController, label: "Long Min", icon: Icons.timer_outlined)),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 3,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey)),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _lngSign,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF0F2027),
-                    items: ["E", "W"].map((val) => DropdownMenuItem(value: val, child: Text(val, style: const TextStyle(color: Colors.white)))).toList(),
-                    onChanged: (val) => setState(() => _lngSign = val!),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGraphOutputBlock(double rate, double dir) {
-    return Column(
-      children: [
-        CustomPaint(size: const Size(double.infinity, 60), painter: TidalCurvePainter(double.tryParse(_timeFromHWController.text) ?? 0.0)),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildResultItem("ESTIMATED DRIFT", "${rate.toStringAsFixed(2)} kts", Colors.white),
-            _buildResultItem("SET DIRECTION", "${dir.toStringAsFixed(0)}°", const Color(0xFFF2C94C)),
-          ],
-        ),
+        Expanded(child: _buildInputField(controller: _latDegController, label: "Lat", icon: Icons.explore)),
+        const SizedBox(width: 8),
+        Expanded(child: _buildInputField(controller: _lngDegController, label: "Long", icon: Icons.explore_outlined)),
       ],
     );
   }
@@ -406,20 +324,17 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   Widget _buildLogbookBlock() {
     if (calculationLog.isEmpty) return const SizedBox.shrink();
     return Container(
-      constraints: const BoxConstraints(maxHeight: 150),
-      margin: const EdgeInsets.topRight(0),
+      constraints: const BoxConstraints(maxHeight: 120),
+      margin: const EdgeInsets.topNavigator(0),
       child: ListView.builder(
         shrinkWrap: true,
         itemCount: calculationLog.length,
-        itemBuilder: (context, index) {
-          final log = calculationLog[index];
-          return ListTile(
-            dense: true,
-            title: Text(log["loc"]!),
-            subtitle: Text("${log["pos"]}\n${log["time"]}"),
-            trailing: Text(log["result"]!, style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-          );
-        },
+        itemBuilder: (context, index) => ListTile(
+          dense: true,
+          title: Text(calculationLog[index]["loc"]!),
+          subtitle: Text(calculationLog[index]["type"]!),
+          trailing: Text(calculationLog[index]["result"]!, style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+        ),
       ),
     );
   }
@@ -430,7 +345,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       keyboardType: isText ? TextInputType.text : const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFFF2C94C), size: 18),
+        prefixIcon: Icon(icon, color: const Color(0xFFF2C94C), size: 16),
         contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFF2C94C))),
@@ -444,31 +359,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     return Column(
       children: [
         Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        Text(val, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+        Text(val, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
       ],
     );
   }
-}
-
-class TidalCurvePainter extends CustomPainter {
-  final double timeFromHW;
-  TidalCurvePainter(this.timeFromHW);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paintCurve = Paint()..color = Colors.cyanAccent.withOpacity(0.5)..style = PaintingStyle.stroke..strokeWidth = 3;
-    final paintDot = Paint()..color = Colors.redAccent..style = PaintingStyle.fill;
-    final path = Path();
-    for (double x = 0; x <= size.width; x++) {
-      double t = (x / size.width) * 6.0;
-      double y = (cos((t / 6.0) * pi) + 1) / 2 * size.height;
-      if (x == 0) { path.moveTo(x, size.height - y); } else { path.lineTo(x, size.height - y); }
-    }
-    canvas.drawPath(path, paintCurve);
-    double dotX = (timeFromHW.clamp(0.0, 6.0) / 6.0) * size.width;
-    double dotY = (cos((timeFromHW.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2 * size.height;
-    canvas.drawCircle(Offset(dotX, size.height - dotY), 5, paintDot);
-  }
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
