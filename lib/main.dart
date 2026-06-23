@@ -27,7 +27,6 @@ class TidalStreamApp extends StatelessWidget {
   }
 }
 
-// Model para sa Bridge Logbook Record
 class LogbookRecord {
   final String id;
   final String location;
@@ -84,7 +83,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _streamSpringMaxController = TextEditingController(text: "3.5");
   final _streamNeapMaxController = TextEditingController(text: "1.5");
 
-  // Results & Logbook State
+  // Default Results
   double estimatedHeight = 1.18;
   double estimatedDrift = 2.42;
   double setDirection = 45.0;
@@ -124,7 +123,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         estimatedDrift = lw + (factor * (hw - lw));
         setDirection = double.tryParse(_directionController.text) ?? 0.0;
 
-        // Auto add sa Bridge Logbook list
         _logbookRecords.insert(
           0,
           LogbookRecord(
@@ -160,6 +158,94 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
+  // BUILT-IN USER GUIDE IN-APP PANEL
+  void _showUserGuide(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0F2027),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  const SizedBox(height: 12),
+                  Center(child: Container(width: 40, height: 5, decoration: BorderRadius.circular(10), color: Colors.grey.shade600)),
+                  const SizedBox(height: 20),
+                  const Row(
+                    children: [
+                      Icon(Icons.menu_book, color: Color(0xFFF2C94C), size: 24),
+                      SizedBox(width: 12),
+                      Text("BRIDGE USER MANUAL", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFF2C94C))),
+                    ],
+                  ),
+                  const Divider(color: Colors.grey, height: 24),
+                  
+                  _buildManualSection(
+                    title: "1. HEIGHT TAB (Meters Calculation)",
+                    body: "Gagamitin para sa pagkuha ng Tidal Height (m) sa tiyak na oras para sa Under Keel Clearance (UKC).\n\n"
+                          "• Ipasok ang Location, HW Height, at LW Height sa unit na metro.\n"
+                          "• Ilagay ang oras mula sa High Water sa field na 'Time fr. HW'.\n"
+                          "• I-click ang COMPUTE HEIGHT para makita ang pinal na resulta.",
+                  ),
+                  _buildManualSection(
+                    title: "2. STANDARD GRAPH TAB (Drift & Set)",
+                    body: "Pangunahing visual guide para sa pagkalkula ng bilis (Drift) at direksyon (Set) ng agos.\n\n"
+                          "• Ipasok ang Lat/Long at Cardinal directions (N/S/E/W).\n"
+                          "• I-encode ang HW at LW Rates mula sa Tidal Stream Atlas o Diamonds sa unit na Knots (kts).\n"
+                          "• I-click ang COMPUTE & RECORD upang mag-plot sa Live Graph, magpakita sa Radar Crosshair, at awtomatikong mag-save sa Bridge Logbook list sa ibaba.",
+                  ),
+                  _buildManualSection(
+                    title: "3. ADVANCED TABLES (Dual-Interpolation)",
+                    body: "Para sa tumpak na pag-compute gamit ang Range values (Mean Spring/Neap Range).\n\n"
+                          "• Ilagay ang kasalukuyang HW/LW Heights kasama ang MSR at MNP mula sa bungad ng Tide Tables.\n"
+                          "• I-encode ang Max Spring/Neap rates at i-click ang COMPUTE upang makuha ang Spring Factor (%) at Calculated Current Speed.",
+                  ),
+                  
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.redAccent.withOpacity(0.4))),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
+                        SizedBox(width: 10),
+                        Expanded(child: Text("BABALA: Ang app ay gumagamit ng sinusoidal approximations. Palaging i-cross-check ang resulta sa opisyal na Admiralty TotalTide (ATT) o manual charts sa panahon ng bridge watch.", style: TextStyle(fontSize: 12, color: Colors.grey))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildManualSection({required String title, required String body}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
+          const SizedBox(height: 6),
+          Text(body, style: const TextStyle(fontSize: 12, color: Colors.white70, height: 1.4)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -174,6 +260,13 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           centerTitle: true,
           backgroundColor: const Color(0xFF0F2027),
           elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.help_outline, color: Color(0xFFF2C94C)),
+              tooltip: 'User Manual',
+              onPressed: () => _showUserGuide(context),
+            )
+          ],
           bottom: const TabBar(
             indicatorColor: Color(0xFFF2C94C),
             labelColor: Color(0xFFF2C94C),
@@ -293,7 +386,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. LIVE POSITION RADAR VIEW WIDGET
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -338,8 +430,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ),
           ),
           const SizedBox(height: 12),
-
-          // PRESET STRAITS DROPDOWN BOX
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
@@ -358,7 +448,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ),
           ),
           const SizedBox(height: 12),
-
           _buildInputWrapper(
             label: "Location / Voyage Leg",
             child: TextFormField(
@@ -512,8 +601,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ),
           ),
           const SizedBox(height: 20),
-          
-          // ================= BRIDGE LOGBOOK RECORD LIST VIEW =================
           const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5)),
           const SizedBox(height: 8),
           _logbookRecords.isEmpty
@@ -712,7 +799,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 }
 
-// Radar graphic painter
 class RadarGridPainter extends CustomPainter {
   final double headingDegrees;
   RadarGridPainter(this.headingDegrees);
@@ -721,35 +807,18 @@ class RadarGridPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
+    final gridPaint = Paint()..color = Colors.teal.withOpacity(0.4)..style = PaintingStyle.stroke..strokeWidth = 1.0;
 
-    final gridPaint = Paint()
-      ..color = Colors.teal.withOpacity(0.4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    // Draw concentric rings
     canvas.drawCircle(center, radius, gridPaint);
     canvas.drawCircle(center, radius * 0.66, gridPaint);
     canvas.drawCircle(center, radius * 0.33, gridPaint);
-
-    // Crosshairs
     canvas.drawLine(Offset(center.dx - radius, center.dy), Offset(center.dx + radius, center.dy), gridPaint);
     canvas.drawLine(Offset(center.dx, center.dy - radius), Offset(center.dx, center.dy + radius), gridPaint);
+    canvas.drawCircle(center, 3.5, Paint()..color = Colors.redAccent..style = PaintingStyle.fill);
 
-    // Center point
-    final centerDot = Paint()..color = Colors.redAccent..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 3.5, centerDot);
-
-    // Heading Line
-    final headingPaint = Paint()
-      ..color = const Color(0xFFF2C94C)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-    
+    final headingPaint = Paint()..color = const Color(0xFFF2C94C)..style = PaintingStyle.stroke..strokeWidth = 2.0;
     double radians = (headingDegrees - 90) * pi / 180;
-    double endX = center.dx + radius * cos(radians);
-    double endY = center.dy + radius * sin(radians);
-    canvas.drawLine(center, Offset(endX, endY), headingPaint);
+    canvas.drawLine(center, Offset(center.dx + radius * cos(radians), center.dy + radius * sin(radians)), headingPaint);
   }
 
   @override
@@ -762,15 +831,7 @@ class TidalSinusoidalPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paintCurve = Paint()
-      ..color = Colors.tealAccent.shade400
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
-
-    final paintDot = Paint()
-      ..color = const Color(0xFFFF5252)
-      ..style = PaintingStyle.fill;
-
+    final paintCurve = Paint()..color = Colors.tealAccent.shade400..style = PaintingStyle.stroke..strokeWidth = 2.5;
     final path = Path();
     for (double x = 0; x <= size.width; x++) {
       double normalizedX = x / size.width;
@@ -784,9 +845,7 @@ class TidalSinusoidalPainter extends CustomPainter {
     canvas.drawPath(path, paintCurve);
 
     double ratio = (time.clamp(0.0, 6.0) / 6.0);
-    double dotX = ratio * size.width;
-    double dotY = (cos(ratio * pi) + 1) / 2 * (size.height - 20) + 10;
-    canvas.drawCircle(Offset(dotX, dotY), 5.5, paintDot);
+    canvas.drawCircle(Offset(ratio * size.width, (cos(ratio * pi) + 1) / 2 * (size.height - 20) + 10), 5.5, Paint()..color = const Color(0xFFFF5252));
   }
 
   @override
