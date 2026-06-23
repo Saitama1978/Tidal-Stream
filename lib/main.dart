@@ -47,7 +47,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   double? calculatedDirection;
   List<Map<String, String>> calculationLog = [];
 
-  // Worldwide Preset Locations for quick load
+  // Worldwide Preset Locations
   final List<Map<String, String>> presets = [
     {"name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125"},
     {"name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075"},
@@ -71,7 +71,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       double timeFromHW = double.parse(_timeFromHWController.text);
       double direction = double.parse(_directionController.text);
 
-      // Marine Standard Cosine Interpolation (6-hour tide cycle)
+      // Marine Standard Cosine Interpolation
       double angle = (timeFromHW.clamp(0.0, 6.0) / 6.0) * pi;
       double factor = (cos(angle) + 1) / 2;
       
@@ -79,7 +79,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         calculatedRate = lwRate + (factor * (hwRate - lwRate));
         calculatedDirection = direction;
 
-        // Save to Logbook/History Table
+        // Save to History Log
         calculationLog.insert(0, {
           "loc": _locationController.text,
           "rate": "${calculatedRate!.toStringAsFixed(2)} kts",
@@ -171,18 +171,19 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Calculate Button
-                ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: const Color(0xFFF2C94C),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ).buildElevatedButton(
+                // Fixed Calculate Button
+                ElevatedButton(
                   onPressed: _calculateTidalStream,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: const Color(0xFFF2C94C),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
                   child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
                 
-                // 2. VISUAL GRAPH GRAPHIC
+                // 2. LIVE INTERPOLATION GRAPH
                 if (calculatedRate != null) ...[
                   const SizedBox(height: 20),
                   Container(
@@ -198,7 +199,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                         const SizedBox(height: 15),
                         CustomPaint(
                           size: const Size(double.infinity, 80),
-                          painter: TidalCurvePainter(double.parse(_timeFromHWController.text)),
+                          painter: TidalCurvePainter(double.tryParse(_timeFromHWController.text) ?? 0.0),
                         ),
                         const SizedBox(height: 15),
                         Row(
@@ -213,13 +214,13 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   ),
                 ],
 
-                // 3. PASSAGE LOGBOOK / HISTORY TABLE
+                // 3. PASSAGE LOGBOOK
                 if (calculationLog.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
                   const SizedBox(height: 8),
                   Container(
-                    maxHeight: 180,
+                    constraints: const BoxConstraints(maxHeight: 180), // Fixed BoxConstraints syntax
                     decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
                     child: ListView.builder(
                       shrinkWrap: true,
@@ -254,7 +255,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFFF2C94C)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFF2C94C))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const Color(0xFFF2C94C)),
         filled: true,
         fillColor: Colors.black12,
       ),
@@ -271,7 +272,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 }
 
-// Custom Painter para sa Tidal Wave Curve Graph
+// Fixed Custom Painter
 class TidalCurvePainter extends CustomPainter {
   final double timeFromHW;
   TidalCurvePainter(this.timeFromHW);
@@ -281,14 +282,13 @@ class TidalCurvePainter extends CustomPainter {
     final paintCurve = Paint()
       ..color = Colors.cyanAccent.withOpacity(0.5)
       ..style = PaintingStyle.stroke
-      ..width = 3;
+      ..strokeWidth = 3; // Fixed standard parameter
 
     final paintDot = Paint()
       ..color = Colors.redAccent
       ..style = PaintingStyle.fill;
 
     final path = Path();
-    // Gumuhit ng Cosine Wave mula 0h (HW) hanggang 6h (LW)
     for (double x = 0; x <= size.width; x++) {
       double t = (x / size.width) * 6.0;
       double y = (cos((t / 6.0) * pi) + 1) / 2 * size.height;
@@ -300,7 +300,6 @@ class TidalCurvePainter extends CustomPainter {
     }
     canvas.drawPath(path, paintCurve);
 
-    // I-plot ang kasalukuyang posisyon ng barko sa graph
     double dotX = (timeFromHW.clamp(0.0, 6.0) / 6.0) * size.width;
     double dotY = (cos((timeFromHW.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2 * size.height;
     canvas.drawCircle(Offset(dotX, size.height - dotY), 6, paintDot);
@@ -308,11 +307,4 @@ class TidalCurvePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-// Extension helper for Button styling syntax integration
-extension on ButtonStyle {
-  Widget buildElevatedButton({required VoidCallback onPressed, child}) {
-    return ElevatedButton(style: this, onPressed: onPressed, child: child);
-  }
 }
