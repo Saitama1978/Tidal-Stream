@@ -27,6 +27,23 @@ class TidalStreamApp extends StatelessWidget {
   }
 }
 
+// Model para sa Bridge Logbook Record
+class LogbookRecord {
+  final String id;
+  final String location;
+  final double timeFromHW;
+  final double direction;
+  final double drift;
+
+  LogbookRecord({
+    required this.id,
+    required this.location,
+    required this.timeFromHW,
+    required this.direction,
+    required this.drift,
+  });
+}
+
 class TidalCalculatorHomePage extends StatefulWidget {
   const TidalCalculatorHomePage({super.key});
 
@@ -46,17 +63,17 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _timeHeightController = TextEditingController(text: "3.5");
 
   // --- TAB 2: STANDARD GRAPH CONTROLLERS ---
-  final _locationController = TextEditingController(text: "Singapore Strait (Eastern)");
-  final _latDegController = TextEditingController(text: "01");
-  final _latMinController = TextEditingController(text: "16.80");
+  final _locationController = TextEditingController(text: "San Bernardino Strait");
+  final _latDegController = TextEditingController(text: "12");
+  final _latMinController = TextEditingController(text: "51.25");
   String _latDir = "N";
-  final _longDegController = TextEditingController(text: "104");
-  final _longMinController = TextEditingController(text: "06.00");
+  final _longDegController = TextEditingController(text: "124");
+  final _longMinController = TextEditingController(text: "28.47");
   String _longDir = "E";
-  final _hwRateController = TextEditingController(text: "2.5");
-  final _lwRateController = TextEditingController(text: "1.0");
+  final _hwRateController = TextEditingController(text: "4.5");
+  final _lwRateController = TextEditingController(text: "1.2");
   final _timeFromHWController = TextEditingController(text: "3.5");
-  final _directionController = TextEditingController(text: "075");
+  final _directionController = TextEditingController(text: "045");
 
   // --- TAB 3: ADVANCED TABLES CONTROLLERS ---
   final _tableStationController = TextEditingController(text: "Port Reference Table");
@@ -67,12 +84,22 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _streamSpringMaxController = TextEditingController(text: "3.5");
   final _streamNeapMaxController = TextEditingController(text: "1.5");
 
-  // Results
-  double? estimatedHeight;
-  double? estimatedDrift;
-  double? setDirection;
-  double? advancedCalculatedRate;
-  double? advancedSpringFactor;
+  // Results & Logbook State
+  double estimatedHeight = 1.18;
+  double estimatedDrift = 2.42;
+  double setDirection = 45.0;
+  double advancedCalculatedRate = 1.24;
+  double advancedSpringFactor = 92.0;
+
+  final List<LogbookRecord> _logbookRecords = [
+    LogbookRecord(
+      id: "1",
+      location: "San Bernardino Strait",
+      timeFromHW: 3.5,
+      direction: 45.0,
+      drift: 2.42,
+    ),
+  ];
 
   void _calculateHeight() {
     if (_formKey1.currentState!.validate()) {
@@ -86,15 +113,28 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  void _calculateStandardDrift() {
+  void _calculateStandardDriftAndRecord() {
     if (_formKey2.currentState!.validate()) {
       double hw = double.tryParse(_hwRateController.text) ?? 0.0;
       double lw = double.tryParse(_lwRateController.text) ?? 0.0;
       double duration = double.tryParse(_timeFromHWController.text) ?? 0.0;
       double factor = (cos((duration.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
+      
       setState(() {
         estimatedDrift = lw + (factor * (hw - lw));
         setDirection = double.tryParse(_directionController.text) ?? 0.0;
+
+        // Auto add sa Bridge Logbook list
+        _logbookRecords.insert(
+          0,
+          LogbookRecord(
+            id: DateTime.now().toString(),
+            location: _locationController.text,
+            timeFromHW: duration,
+            direction: setDirection,
+            drift: estimatedDrift,
+          ),
+        );
       });
     }
   }
@@ -225,24 +265,22 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ),
             child: const Text("COMPUTE HEIGHT", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ),
-          if (estimatedHeight != null) ...[
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F2027).withOpacity(0.5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFF2C94C).withOpacity(0.4)),
-              ),
-              child: Column(
-                children: [
-                  const Text("ESTIMATED TIDAL HEIGHT", style: TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1)),
-                  const SizedBox(height: 8),
-                  Text("${estimatedHeight!.toStringAsFixed(2)} m", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
-                ],
-              ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F2027).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFF2C94C).withOpacity(0.4)),
             ),
-          ]
+            child: Column(
+              children: [
+                const Text("ESTIMATED TIDAL HEIGHT", style: TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1)),
+                const SizedBox(height: 8),
+                Text("${estimatedHeight.toStringAsFixed(2)} m", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -255,30 +293,96 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 1. LIVE POSITION RADAR VIEW WIDGET
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F2027).withOpacity(0.8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF1B3B47)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("LIVE POSITION RADAR VIEW", style: TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 0.8)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_locationController.text, style: const TextStyle(color: Color(0xFFF2C94C), fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text("LAT: ${_latDegController.text}.${_latMinController.text}° $_latDir", style: const TextStyle(color: Colors.grey, fontSize: 11, fontFamily: 'monospace')),
+                          Text("LNG: ${_longDegController.text}.${_longMinController.text}° $_longDir", style: const TextStyle(color: Colors.grey, fontSize: 11, fontFamily: 'monospace')),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 70,
+                      height: 70,
+                      child: CustomPaint(painter: RadarGridPainter(setDirection)),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(Icons.gps_fixed, color: Colors.redAccent, size: 12),
+                    SizedBox(width: 4),
+                    Text("GPS REF LOCK", style: TextStyle(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold)),
+                  ],
+                )
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // PRESET STRAITS DROPDOWN BOX
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1B2D36),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF2E4E58)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.public, color: Colors.cyanAccent, size: 18),
+                SizedBox(width: 10),
+                Text("Load Worldwide Preset Straits...", style: TextStyle(color: Colors.cyanAccent, fontSize: 13, fontWeight: FontWeight.w500)),
+                Spacer(),
+                Icon(Icons.arrow_drop_down, color: Colors.grey),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
           _buildInputWrapper(
             label: "Location / Voyage Leg",
             child: TextFormField(
               controller: _locationController,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.map, color: Color(0xFFF2C94C))),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.map, color: Color(0xFFF2C94C), size: 18)),
             ),
           ),
-          const SizedBox(height: 14),
-          const Text("POSITION SPECIFICATION", style: TextStyle(fontSize: 12, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          const Text("POSITION SPECIFICATION", style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
                 child: _buildInputWrapper(
                   label: "Lat...",
-                  child: TextFormField(controller: _latDegController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.explore, color: Color(0xFFF2C94C), size: 16))),
+                  child: TextFormField(controller: _latDegController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.explore, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _buildInputWrapper(
                   label: "Lat Min (')",
-                  child: TextFormField(controller: _latMinController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 16))),
+                  child: TextFormField(controller: _latMinController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
               const SizedBox(width: 8),
@@ -293,20 +397,20 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
                 child: _buildInputWrapper(
                   label: "Lo...",
-                  child: TextFormField(controller: _longDegController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.explore, color: Color(0xFFF2C94C), size: 16))),
+                  child: TextFormField(controller: _longDegController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.explore, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _buildInputWrapper(
                   label: "Long Mi...",
-                  child: TextFormField(controller: _longMinController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 16))),
+                  child: TextFormField(controller: _longMinController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
               const SizedBox(width: 8),
@@ -321,85 +425,85 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: _buildInputWrapper(
                   label: "HW Rate (kts)",
-                  child: TextFormField(controller: _hwRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.trending_up, color: Color(0xFFF2C94C), size: 16))),
+                  child: TextFormField(controller: _hwRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.trending_up, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildInputWrapper(
                   label: "LW Rate (kts)",
-                  child: TextFormField(controller: _lwRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.trending_down, color: Color(0xFFF2C94C), size: 16))),
+                  child: TextFormField(controller: _lwRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.trending_down, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
                 child: _buildInputWrapper(
                   label: "Time fr. HW (h...",
-                  child: TextFormField(controller: _timeFromHWController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 16))),
+                  child: TextFormField(controller: _timeFromHWController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildInputWrapper(
                   label: "Direction (°)",
-                  child: TextFormField(controller: _directionController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.navigation, color: Color(0xFFF2C94C), size: 16))),
+                  child: TextFormField(controller: _directionController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.navigation, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: _calculateStandardDrift,
+            onPressed: _calculateStandardDriftAndRecord,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFF2C94C),
               foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.5)),
+            child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.black26,
+              color: const Color(0xFF0F2027).withOpacity(0.6),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF2E4E58)),
             ),
             child: Column(
               children: [
-                const Text("INTERPOLATION LIVE GRAPH", style: TextStyle(fontSize: 11, color: Colors.grey, letterSpacing: 0.8)),
-                const SizedBox(height: 16),
+                const Text("INTERPOLATION LIVE GRAPH", style: TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 0.8)),
+                const SizedBox(height: 12),
                 CustomPaint(
-                  size: const Size(double.infinity, 90),
+                  size: const Size(double.infinity, 70),
                   painter: TidalSinusoidalPainter(double.tryParse(_timeFromHWController.text) ?? 0.0),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     Column(
                       children: [
-                        const Text("ESTIMATED DRIFT", style: TextStyle(fontSize: 11, color: Colors.grey)),
-                        const SizedBox(height: 4),
-                        Text(estimatedDrift != null ? "${estimatedDrift!.toStringAsFixed(2)} kts" : "2.25 kts", style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const Text("ESTIMATED DRIFT", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                        const SizedBox(height: 2),
+                        Text("${estimatedDrift.toStringAsFixed(2)} kts", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
                       ],
                     ),
                     Column(
                       children: [
-                        const Text("SET DIRECTION", style: TextStyle(fontSize: 11, color: Colors.grey)),
-                        const SizedBox(height: 4),
-                        Text(setDirection != null ? "${setDirection!.toStringAsFixed(0)}°" : "75°", style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFFF2C94C))),
+                        const Text("SET DIRECTION", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                        const SizedBox(height: 2),
+                        Text("${setDirection.toStringAsFixed(0)}°", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFF2C94C))),
                       ],
                     ),
                   ],
@@ -407,6 +511,59 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
+          const SizedBox(height: 20),
+          
+          // ================= BRIDGE LOGBOOK RECORD LIST VIEW =================
+          const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+          _logbookRecords.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text("No records available.", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _logbookRecords.length,
+                  itemBuilder: (context, index) {
+                    final item = _logbookRecords[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B2D36),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF2E4E58)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.assignment, color: Color(0xFFF2C94C), size: 22),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(item.location, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                                const SizedBox(height: 2),
+                                Text("${item.timeFromHW}h from HW | Dir: ${item.direction.toStringAsFixed(0)}°", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                          Text("${item.drift.toStringAsFixed(2)} kts", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.greenAccent)),
+                          const SizedBox(width: 12),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                            onPressed: () {
+                              setState(() {
+                                _logbookRecords.removeAt(index);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
         ],
       ),
     );
@@ -506,14 +663,14 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             child: Column(
               children: [
                 Text(
-                  "Spring Factor: ${advancedSpringFactor?.toStringAsFixed(0) ?? "92"}%",
+                  "Spring Factor: ${advancedSpringFactor.toStringAsFixed(0)}%",
                   style: const TextStyle(fontSize: 12, color: Colors.yellowAccent, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 6),
                 const Text("CALCULATED CURRENT SPEED", style: TextStyle(fontSize: 11, color: Colors.grey)),
                 const SizedBox(height: 4),
                 Text(
-                  advancedCalculatedRate != null ? "${advancedCalculatedRate!.toStringAsFixed(2)} kts" : "1.24 kts",
+                  "${advancedCalculatedRate.toStringAsFixed(2)} kts",
                   style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ],
@@ -526,7 +683,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
 
   Widget _buildInputWrapper({required String label, required Widget child}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
@@ -535,8 +692,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          SizedBox(height: 32, child: child),
+          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          SizedBox(height: 28, child: child),
         ],
       ),
     );
@@ -544,8 +701,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
 
   Widget _buildDropdownWrapper({required Widget child}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: 44,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF4F5D65)),
@@ -553,6 +710,50 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       child: Center(child: child),
     );
   }
+}
+
+// Radar graphic painter
+class RadarGridPainter extends CustomPainter {
+  final double headingDegrees;
+  RadarGridPainter(this.headingDegrees);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    final gridPaint = Paint()
+      ..color = Colors.teal.withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    // Draw concentric rings
+    canvas.drawCircle(center, radius, gridPaint);
+    canvas.drawCircle(center, radius * 0.66, gridPaint);
+    canvas.drawCircle(center, radius * 0.33, gridPaint);
+
+    // Crosshairs
+    canvas.drawLine(Offset(center.dx - radius, center.dy), Offset(center.dx + radius, center.dy), gridPaint);
+    canvas.drawLine(Offset(center.dx, center.dy - radius), Offset(center.dx, center.dy + radius), gridPaint);
+
+    // Center point
+    final centerDot = Paint()..color = Colors.redAccent..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 3.5, centerDot);
+
+    // Heading Line
+    final headingPaint = Paint()
+      ..color = const Color(0xFFF2C94C)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    
+    double radians = (headingDegrees - 90) * pi / 180;
+    double endX = center.dx + radius * cos(radians);
+    double endY = center.dy + radius * sin(radians);
+    canvas.drawLine(center, Offset(endX, endY), headingPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 class TidalSinusoidalPainter extends CustomPainter {
