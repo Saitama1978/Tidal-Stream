@@ -38,39 +38,28 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _formKey1 = GlobalKey<FormState>();
   final _formKey2 = GlobalKey<FormState>();
   
-  final _locationController = TextEditingController(text: "San Bernardino Strait");
-  final _locationController2 = TextEditingController(text: "Malacca Strait Entry");
-  
-  // Position Coordinates (Shared Bridge Data)
-  final _latDegController = TextEditingController(text: "12");
-  final _latMinController = TextEditingController(text: "30.75");
-  String _latSign = "N";
-  final _lngDegController = TextEditingController(text: "124");
-  final _lngMinController = TextEditingController(text: "17.12");
-  String _lngSign = "E";
+  final _locationController = TextEditingController(text: "Malacca Strait");
+  final _locationController2 = TextEditingController(text: "Port Reference Table");
 
-  // Tab 1 Standard Inputs
-  final _hwRateController = TextEditingController(text: "4.5");
-  final _lwRateController = TextEditingController(text: "1.2");
+  // Tab 1 Standard Inputs (Speed in knots)
+  final _hwRateController = TextEditingController(text: "2.5");
+  final _lwRateController = TextEditingController(text: "0.4");
   final _timeFromHWController = TextEditingController(text: "3.5");
-  final _directionController = TextEditingController(text: "045");
+  final _directionController = TextEditingController(text: "310");
 
-  // Tab 2 Advanced Dual-Interpolation Inputs (Tide Tables + Stream Tables)
-  final _tableHwHeightController = TextEditingController(text: "5.0"); // Ngayong araw (Meters)
-  final _tableLwHeightController = TextEditingController(text: "1.0"); // Ngayong araw (Meters)
-  final _msrController = TextEditingController(text: "4.2");            // Mean Spring Range (Meters)
-  final _mnpController = TextEditingController(text: "1.8");            // Mean Neap Range (Meters)
-  final _streamSpringMaxController = TextEditingController(text: "3.5"); // Max Spring Stream (Knots)
-  final _streamNeapMaxController = TextEditingController(text: "1.5");   // Max Neap Stream (Knots)
+  // Tab 2 Advanced Inputs
+  final _tableHwHeightController = TextEditingController(text: "5.0"); 
+  final _tableLwHeightController = TextEditingController(text: "1.0"); 
+  final _msrController = TextEditingController(text: "4.2");            
+  final _mnpController = TextEditingController(text: "1.8");            
+  final _streamSpringMaxController = TextEditingController(text: "3.5"); 
+  final _streamNeapMaxController = TextEditingController(text: "1.5");   
   String _harmonicType = "Semi-Diurnal"; 
 
   double? calculatedRate;
   double? calculatedDirection;
-  
   double? advancedCalculatedRate;
   String advancedInterpolationMethod = "";
-
-  List<Map<String, String>> calculationLog = [];
 
   void _calculateStandardTidalStream() {
     if (_formKey1.currentState!.validate()) {
@@ -85,13 +74,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       setState(() {
         calculatedRate = lwRate + (factor * (hwRate - lwRate));
         calculatedDirection = direction;
-
-        calculationLog.insert(0, {
-          "id": DateTime.now().millisecondsSinceEpoch.toString(),
-          "loc": _locationController.text,
-          "result": "${calculatedRate!.toStringAsFixed(2)} kts",
-          "type": "Standard Curve"
-        });
       });
     }
   }
@@ -105,36 +87,22 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       double springMaxRate = double.parse(_streamSpringMaxController.text);
       double neapMaxRate = double.parse(_streamNeapMaxController.text);
       double timeFromHW = double.parse(_timeFromHWController.text);
-      double direction = double.parse(_directionController.text);
 
-      // Step 1: Alamin ang range ng tide ngayong araw sa lugar
       double currentRange = (hwHeight - lwHeight).abs();
-      
-      // Step 2: Interpolate gamit ang MSR at MNP kung nasaan tayo sa pagitan ng Spring at Neap
       double rangeFactor = 0.5; 
       if ((msr - mnp).abs() > 0.01) {
         rangeFactor = ((currentRange - mnp) / (msr - mnp)).clamp(0.0, 1.0);
       }
       
-      // Makuha ang Factor base sa Harmonic type ng cycle (Semi-diurnal = 6h, Diurnal = 12h)
       double periodDivider = _harmonicType == "Diurnal" ? 12.0 : 6.0;
       double angle = (timeFromHW.clamp(0.0, periodDivider) / periodDivider) * pi;
       double timeFactor = (cos(angle) + 1) / 2;
 
-      // Step 3: Compute ng Target Maximum Stream Rate para sa araw na ito
       double maxRateForToday = neapMaxRate + (rangeFactor * (springMaxRate - neapMaxRate));
 
       setState(() {
-        // Step 4: Isalang sa Cosine Factor ng Oras para makuha ang Live Hourly Drift
         advancedCalculatedRate = maxRateForToday * timeFactor;
-        advancedInterpolationMethod = "Spring weight: ${(rangeFactor * 100).toStringAsFixed(0)}% | Factor: ${timeFactor.toStringAsFixed(2)}";
-
-        calculationLog.insert(0, {
-          "id": DateTime.now().millisecondsSinceEpoch.toString(),
-          "loc": _locationController2.text,
-          "result": "${advancedCalculatedRate!.toStringAsFixed(2)} kts",
-          "type": "MSR/MNP Harmonic"
-        });
+        advancedInterpolationMethod = "Spring Factor: ${(rangeFactor * 100).toStringAsFixed(0)}%";
       });
     }
   }
@@ -147,7 +115,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         appBar: AppBar(
           title: const Text(
             'TIDAL STREAM WORLDWIDE',
-            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Color(0xFFF2C94C)),
+            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF2C94C)),
           ),
           centerTitle: true,
           backgroundColor: const Color(0xFF0F2027),
@@ -156,8 +124,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             labelColor: Color(0xFFF2C94C),
             unselectedLabelColor: Colors.grey,
             tabs: [
-              Tab(icon: Icon(Icons.stacked_line_chart), text: "STANDARD GRAPH"),
-              Tab(icon: Icon(Icons.領収書), text: "ADVANCED TABLES"),
+              Tab(icon: Icon(Icons.show_chart), text: "STANDARD GRAPH"),
+              Tab(icon: Icon(Icons.table_chart), text: "ADVANCED TABLES"),
             ],
           ),
         ),
@@ -188,8 +156,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         children: [
           _buildInputField(controller: _locationController, label: "Location / Voyage Leg", icon: Icons.map, isText: true),
           const SizedBox(height: 16),
-          _buildVesselPositionBlock(),
-          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(child: _buildInputField(controller: _hwRateController, label: "HW Rate (kts)", icon: Icons.speed)),
@@ -213,7 +179,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               backgroundColor: const Color(0xFFF2C94C),
               foregroundColor: Colors.black,
             ),
-            child: const Text("COMPUTE STANDARD DRIFT", style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           if (calculatedRate != null) ...[
             const SizedBox(height: 20),
@@ -232,7 +198,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         children: [
           _buildInputField(controller: _locationController2, label: "Tide Station Reference", icon: Icons.book, isText: true),
           const SizedBox(height: 16),
-          const Text("1. TIDE TABLE VERTICAL HEIGHTS (METERS)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
+          const Text("1. TIDE TABLE HEIGHTS (METERS)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -259,28 +225,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               Expanded(child: _buildInputField(controller: _streamNeapMaxController, label: "Max Neap Rate (kts)", icon: Icons.directions_run)),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildInputField(controller: _timeFromHWController, label: "Time from HW (hrs)", icon: Icons.access_time)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                  decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey)),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _harmonicType,
-                      isExpanded: true,
-                      dropdownColor: const Color(0xFF0F2027),
-                      items: ["Semi-Diurnal", "Diurnal"].map((val) => DropdownMenuItem(value: val, child: Text(val, style: const TextStyle(color: Colors.white)))).toList(),
-                      onChanged: (val) => setState(() => _harmonicType = val!),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _calculateAdvancedTidalStream,
@@ -305,36 +249,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ),
             ),
           ],
-          _buildLogbookBlock(),
         ],
-      ),
-    );
-  }
-
-  Widget _buildVesselPositionBlock() {
-    return Row(
-      children: [
-        Expanded(child: _buildInputField(controller: _latDegController, label: "Lat", icon: Icons.explore)),
-        const SizedBox(width: 8),
-        Expanded(child: _buildInputField(controller: _lngDegController, label: "Long", icon: Icons.explore_outlined)),
-      ],
-    );
-  }
-
-  Widget _buildLogbookBlock() {
-    if (calculationLog.isEmpty) return const SizedBox.shrink();
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 120),
-      margin: const EdgeInsets.topNavigator(0),
-      child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: calculationLog.length,
-        itemBuilder: (context, index) => ListTile(
-          dense: true,
-          title: Text(calculationLog[index]["loc"]!),
-          subtitle: Text(calculationLog[index]["type"]!),
-          trailing: Text(calculationLog[index]["result"]!, style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-        ),
       ),
     );
   }
