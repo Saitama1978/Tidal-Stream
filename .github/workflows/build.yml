@@ -25,9 +25,9 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Reconstruct Project Safely
+      - name: Reconstruct Project and Inject Custom Icon
         run: |
-          # 1. Itago muna ang totoong main.dart para hindi mabura ng flutter create
+          # 1. Itago muna ang totoong main.dart mo para ligtas
           mkdir -p temp_lib
           cp lib/main.dart temp_lib/main.dart
           
@@ -36,6 +36,23 @@ jobs:
           
           # 3. Ibalik ang totoong code mo mula sa backup
           cp temp_lib/main.dart lib/main.dart
+          
+          # 4. Pag-inject at pag-arrange ng iyong custom App Icon (icon.png sa root)
+          if [ -f "icon.png" ]; then
+            mkdir -p android/app/src/main/res/mipmap-hdpi
+            mkdir -p android/app/src/main/res/mipmap-mdpi
+            mkdir -p android/app/src/main/res/mipmap-xhdpi
+            mkdir -p android/app/src/main/res/mipmap-xxhdpi
+            mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+            cp icon.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+            cp icon.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+            cp icon.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            cp icon.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            cp icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            echo "🚀 Custom App Icon successfully injected into Android layout!"
+          else
+            echo "⚠️ Warning: icon.png not found in root directory!"
+          fi
 
       - name: Build APK File
         run: |
