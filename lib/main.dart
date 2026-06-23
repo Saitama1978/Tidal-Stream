@@ -60,12 +60,11 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _hwHeightController = TextEditingController(text: "2.5");
   final _lwHeightController = TextEditingController(text: "0.4");
   
-  // Mga Oras para sa Height Tab (TimeOfDay)
-  TimeOfDay? _hwTime = const TimeOfDay(hour: 10, minute: 0);
-  TimeOfDay? _lwTime = const TimeOfDay(hour: 16, minute: 15);
-  TimeOfDay? _targetTime = const TimeOfDay(hour: 13, minute: 30);
+  TimeOfDay? _hwTimeTab1 = const TimeOfDay(hour: 10, minute: 0);
+  TimeOfDay? _lwTimeTab1 = const TimeOfDay(hour: 16, minute: 15);
+  TimeOfDay? _targetTimeTab1 = const TimeOfDay(hour: 13, minute: 30);
 
-  // --- TAB 2: STANDARD GRAPH CONTROLLERS ---
+  // --- TAB 2: STANDARD GRAPH CONTROLLERS & STATES ---
   final _locationController = TextEditingController(text: "San Bernardino Strait");
   final _latDegController = TextEditingController(text: "12");
   final _latMinController = TextEditingController(text: "51.25");
@@ -75,8 +74,12 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   String _longDir = "E";
   final _hwRateController = TextEditingController(text: "4.5");
   final _lwRateController = TextEditingController(text: "1.2");
-  final _timeFromHWController = TextEditingController(text: "3.5");
   final _directionController = TextEditingController(text: "045");
+
+  // Bagong Time States para sa Standard Graph Tab
+  TimeOfDay? _hwTimeTab2 = const TimeOfDay(hour: 10, minute: 0);
+  TimeOfDay? _targetTimeTab2 = const TimeOfDay(hour: 13, minute: 30);
+  double _calculatedTimeFromHWTab2 = 3.5; // Gagamitin para sa live graph rendering
 
   // --- TAB 3: ADVANCED TABLES CONTROLLERS ---
   final _tableStationController = TextEditingController(text: "Port Reference Table");
@@ -105,12 +108,15 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     ),
   ];
 
-  // Helper para sa madaling pagpili ng oras
-  Future<void> _selectTime(BuildContext context, String type) async {
+  // Universal Helper para sa pagpili ng oras sa lahat ng tabs
+  Future<void> _selectTime(BuildContext context, String tabAndType) async {
     TimeOfDay initialTime = const TimeOfDay(hour: 12, minute: 0);
-    if (type == 'HW') initialTime = _hwTime ?? initialTime;
-    if (type == 'LW') initialTime = _lwTime ?? initialTime;
-    if (type == 'TARGET') initialTime = _targetTime ?? initialTime;
+    
+    if (tabAndType == 'T1_HW') initialTime = _hwTimeTab1 ?? initialTime;
+    if (tabAndType == 'T1_LW') initialTime = _lwTimeTab1 ?? initialTime;
+    if (tabAndType == 'T1_TARGET') initialTime = _targetTimeTab1 ?? initialTime;
+    if (tabAndType == 'T2_HW') initialTime = _hwTimeTab2 ?? initialTime;
+    if (tabAndType == 'T2_TARGET') initialTime = _targetTimeTab2 ?? initialTime;
 
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -118,33 +124,31 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
     if (picked != null) {
       setState(() {
-        if (type == 'HW') _hwTime = picked;
-        if (type == 'LW') _lwTime = picked;
-        if (type == 'TARGET') _targetTime = picked;
+        if (tabAndType == 'T1_HW') _hwTimeTab1 = picked;
+        if (tabAndType == 'T1_LW') _lwTimeTab1 = picked;
+        if (tabAndType == 'T1_TARGET') _targetTimeTab1 = picked;
+        if (tabAndType == 'T2_HW') _hwTimeTab2 = picked;
+        if (tabAndType == 'T2_TARGET') _targetTimeTab2 = picked;
       });
     }
   }
 
-  // Helper para makuha ang kabuuang minuto ng araw
+  // Helper para gawing kabuuang minuto ang TimeOfDay
   int _timeToMinutes(TimeOfDay time) => (time.hour * 60) + time.minute;
 
   void _calculateHeight() {
-    if (_formKey1.currentState!.validate() && _hwTime != null && _lwTime != null && _targetTime != null) {
+    if (_formKey1.currentState!.validate() && _hwTimeTab1 != null && _lwTimeTab1 != null && _targetTimeTab1 != null) {
       double hw = double.tryParse(_hwHeightController.text) ?? 0.0;
       double lw = double.tryParse(_lwHeightController.text) ?? 0.0;
 
-      int hwMin = _timeToMinutes(_hwTime!);
-      int lwMin = _timeToMinutes(_lwTime!);
-      int targetMin = _timeToMinutes(_targetTime!);
+      int hwMin = _timeToMinutes(_hwTimeTab1!);
+      int lwMin = _timeToMinutes(_lwTimeTab1!);
+      int targetMin = _timeToMinutes(_targetTimeTab1!);
 
-      // Kabuuang tagal ng agwat ng HW at LW sa minuto
       int totalTideDuration = (hwMin - lwMin).abs();
       if (totalTideDuration == 0) return; 
 
-      // Oras mula HW hanggang sa target time sa minuto
       int timeFromHW = (targetMin - hwMin).abs();
-
-      // Sinusoidal Approximation factor batay sa totoong agwat ng oras
       double factor = (cos((timeFromHW / totalTideDuration) * pi) + 1) / 2;
       
       setState(() {
@@ -154,14 +158,25 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 
   void _calculateStandardDriftAndRecord() {
-    if (_formKey2.currentState!.validate()) {
-      double hw = double.tryParse(_hwRateController.text) ?? 0.0;
-      double lw = double.tryParse(_lwRateController.text) ?? 0.0;
-      double duration = double.tryParse(_timeFromHWController.text) ?? 0.0;
-      double factor = (cos((duration.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
+    if (_formKey2.currentState!.validate() && _hwTimeTab2 != null && _targetTimeTab2 != null) {
+      double hwRate = double.tryParse(_hwRateController.text) ?? 0.0;
+      double lwRate = double.tryParse(_lwRateController.text) ?? 0.0;
+      
+      int hwMin = _timeToMinutes(_hwTimeTab2!);
+      int targetMin = _timeToMinutes(_targetTimeTab2!);
+
+      // Awtomatikong kukuha ng agwat ng oras (oras mula HW)
+      int diffInMinutes = (targetMin - hwMin).abs();
+      double durationInHours = diffInMinutes / 60.0;
+
+      // I-save ang calculated duration sa state para magamit ng Live Graph Painter
+      _calculatedTimeFromHWTab2 = durationInHours;
+
+      // Limitahan sa standard 6 hours para sa sinusoidal interpolation plot
+      double factor = (cos((durationInHours.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
       
       setState(() {
-        estimatedDrift = lw + (factor * (hw - lw));
+        estimatedDrift = lwRate + (factor * (hwRate - lwRate));
         setDirection = double.tryParse(_directionController.text) ?? 0.0;
 
         _logbookRecords.insert(
@@ -169,7 +184,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           LogbookRecord(
             id: DateTime.now().toString(),
             location: _locationController.text,
-            timeFromHW: duration,
+            timeFromHW: double.parse(durationInHours.toStringAsFixed(1)),
             direction: setDirection,
             drift: estimatedDrift,
           ),
@@ -223,10 +238,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                     child: Container(
                       width: 40, 
                       height: 5, 
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade600,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      decoration: BoxDecoration(color: Colors.grey.shade600, borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -238,7 +250,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                     ],
                   ),
                   const Divider(color: Colors.grey, height: 24),
-                  
                   _buildManualSection(
                     title: "1. HEIGHT TAB (Meters Calculation)",
                     body: "Gagamitin para sa pagkuha ng Tidal Height (m) sa tiyak na oras para sa Under Keel Clearance (UKC).\n\n"
@@ -250,8 +261,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                     title: "2. STANDARD GRAPH TAB (Drift & Set)",
                     body: "Pangunahing visual guide para sa pagkalkula ng bilis (Drift) at direksyon (Set) ng agos.\n\n"
                           "• Ipasok ang Lat/Long at Cardinal directions (N/S/E/W).\n"
-                          "• I-encode ang HW at LW Rates mula sa Tidal Stream Atlas sa unit na Knots (kts).\n"
-                          "• I-click ang COMPUTE & RECORD upang mag-plot sa Live Graph at awtomatikong mag-save sa Bridge Logbook sa ibaba.",
+                          "• I-encode ang HW at LW Rates mula sa Tidal Stream Atlas.\n"
+                          "• Ipasok ang HW Time at Target (ETA) Time upang awtomatikong makuha ang agwat ng oras.\n"
+                          "• I-click ang COMPUTE & RECORD upang mag-save sa Bridge Logbook.",
                   ),
                   _buildManualSection(
                     title: "3. ADVANCED TABLES (Dual-Interpolation)",
@@ -259,7 +271,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                           "• Ilagay ang kasalukuyang HW/LW Heights kasama ang MSR at MNP mula sa bungad ng Tide Tables.\n"
                           "• I-encode ang Max Spring/Neap rates at i-click ang COMPUTE upang makuha ang Spring Factor (%) at Calculated Current Speed.",
                   ),
-                  
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.redAccent.withOpacity(0.4))),
@@ -303,10 +314,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       initialIndex: 0,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
-            'TIDAL STREAM WORLDWIDE',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 1.2),
-          ),
+          title: const Text('TIDAL STREAM WORLDWIDE', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 1.2)),
           centerTitle: true,
           backgroundColor: const Color(0xFF0F2027),
           elevation: 0,
@@ -321,21 +329,11 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             indicatorColor: Color(0xFFF2C94C),
             labelColor: Color(0xFFF2C94C),
             unselectedLabelColor: Colors.grey,
-            tabs: [
-              Tab(text: "HEIGHT"),
-              Tab(text: "STANDARD GRAPH"),
-              Tab(text: "ADVANCED TABLES"),
-            ],
+            tabs: [Tab(text: "HEIGHT"), Tab(text: "STANDARD GRAPH"), Tab(text: "ADVANCED TABLES")],
           ),
         ),
         body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0F2027), Color(0xFF14262E)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
+          decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0F2027), Color(0xFF14262E)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
           child: TabBarView(
             children: [
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildHeightTab())),
@@ -379,8 +377,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               Expanded(
                 child: _buildTimeSelectorWrapper(
                   label: "HW Time (hh:mm)",
-                  time: _hwTime,
-                  onTap: () => _selectTime(context, 'HW'),
+                  time: _hwTimeTab1,
+                  onTap: () => _selectTime(context, 'T1_HW'),
                 ),
               ),
             ],
@@ -402,8 +400,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               Expanded(
                 child: _buildTimeSelectorWrapper(
                   label: "LW Time (hh:mm)",
-                  time: _lwTime,
-                  onTap: () => _selectTime(context, 'LW'),
+                  time: _lwTimeTab1,
+                  onTap: () => _selectTime(context, 'T1_LW'),
                 ),
               ),
             ],
@@ -411,8 +409,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           const SizedBox(height: 16),
           _buildTimeSelectorWrapper(
             label: "Target Time for Calculation (hh:mm)",
-            time: _targetTime,
-            onTap: () => _selectTime(context, 'TARGET'),
+            time: _targetTimeTab1,
+            onTap: () => _selectTime(context, 'T1_TARGET'),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -446,7 +444,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 2: STANDARD GRAPH =================
+  // ================= TAB 2: STANDARD GRAPH (UPGRADED WITH TIME SELECTORS) =================
   Widget _buildStandardGraphTab() {
     return Form(
       key: _formKey2,
@@ -537,23 +535,31 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          // Heto na ang mga pinalit nating Oras sa halip na manual decimal field, Chief!
           Row(
             children: [
               Expanded(
-                child: _buildInputWrapper(
-                  label: "Time fr. HW (h...",
-                  child: TextFormField(controller: _timeFromHWController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 14))),
+                child: _buildTimeSelectorWrapper(
+                  label: "HW Time (hh:mm)",
+                  time: _hwTimeTab2,
+                  onTap: () => _selectTime(context, 'T2_HW'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildInputWrapper(
-                  label: "Direction (°)",
-                  child: TextFormField(controller: _directionController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.navigation, color: Color(0xFFF2C94C), size: 14))),
+                child: _buildTimeSelectorWrapper(
+                  label: "Target Time / ETA (hh:mm)",
+                  time: _targetTimeTab2,
+                  onTap: () => _selectTime(context, 'T2_TARGET'),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          _buildInputWrapper(
+            label: "Direction (°)",
+            child: TextFormField(controller: _directionController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.navigation, color: Color(0xFFF2C94C), size: 14))),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -580,7 +586,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 const SizedBox(height: 12),
                 CustomPaint(
                   size: const Size(double.infinity, 70),
-                  painter: TidalSinusoidalPainter(double.tryParse(_timeFromHWController.text) ?? 0.0),
+                  painter: TidalSinusoidalPainter(_calculatedTimeFromHWTab2),
                 ),
                 const SizedBox(height: 14),
                 Row(
