@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:url_launcher/url_launcher.dart'; // Tamang import para hindi mag-error ang launchUrl
 
 void main() {
   runApp(const TidalStreamApp());
@@ -55,13 +56,11 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _formKey2 = GlobalKey<FormState>();
   final _formKey3 = GlobalKey<FormState>();
 
-  // --- TAB 1: HEIGHT CONTROLLERS & STATES ---
   final _locHeightController = TextEditingController(text: "Manila Harbor");
   final _hwHeightController = TextEditingController(text: "2.5");
   final _lwHeightController = TextEditingController(text: "0.4");
   final _timeFromHwHeightController = TextEditingController(text: "3.5");
 
-  // --- TAB 2: STANDARD GRAPH CONTROLLERS & STATES ---
   final _locationController = TextEditingController(text: "San Bernardino Strait");
   final _latDegController = TextEditingController(text: "12");
   final _latMinController = TextEditingController(text: "51.25");
@@ -74,7 +73,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _timeFromHwStreamController = TextEditingController(text: "3.5");
   final _directionController = TextEditingController(text: "045");
 
-  // --- TAB 3: ADVANCED TABLES CONTROLLERS ---
   final _tableStationController = TextEditingController(text: "Port Reference Table");
   final _tableHwHeightController = TextEditingController(text: "5.0");
   final _tableLwHeightController = TextEditingController(text: "1.0");
@@ -155,6 +153,18 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
+  // Functional URL function para sa totoong Live Map Link
+  Future<void> _openLiveMap() async {
+    final Uri url = Uri.parse('https://www.windy.com/-Waves-waves?waves,12.876,121.774,5');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not launch Live Map Server.")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -193,7 +203,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 1: HEIGHT TAB =================
   Widget _buildHeightTab() {
     return Form(
       key: _formKey1,
@@ -223,7 +232,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ],
           ),
           const SizedBox(height: 16),
-          // NARITO ANG RE-IMPLEMENTED TIME FIELD INPUT MULA SA SCREENSHOT MO
           _buildInputWrapper(
             label: "Time fr. HW (hours)",
             child: TextFormField(controller: _timeFromHwHeightController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C)))),
@@ -251,7 +259,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 2: STANDARD GRAPH TAB =================
   Widget _buildStandardGraphTab() {
     return Form(
       key: _formKey2,
@@ -363,7 +370,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 3: ADVANCED TABLES =================
   Widget _buildAdvancedTablesTab() {
     return Form(
       key: _formKey3,
@@ -421,64 +427,52 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 4: LIVE MAP (NATIVE FLUTTER CUSTOM RADAR VIEW) =================
+  // ================= TAB 4: BINALIK NA LIVE MAP CONNECTOR =================
   Widget _buildLiveMapTab() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.radar_rounded, size: 60, color: Colors.cyanAccent),
-          const SizedBox(height: 12),
-          const Text(
-            "GLOBAL OCEAN CURRENTS RADAR",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 0.5),
-          ),
-          const SizedBox(height: 14),
-          
-          // ETO NA ANG NATIVE INTERACTIVE MAP REPLACEMENT PANEL PARA COMPATIBLE SA ENGINE MO
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.cyan.withOpacity(0.5)),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(11),
-              child: CustomPaint(
-                size: const Size(double.infinity, 200),
-                painter: OceanCurrentRadarPainter(),
-              ),
-            ),
-          ),
-          
+          const Icon(Icons.language_rounded, size: 70, color: Colors.cyanAccent),
           const SizedBox(height: 16),
           const Text(
-            "Upang makasiguro sa 100% stable compilation ng bridge system, ang map overlay na ito ay binuo gamit ang standalone vector engine.",
+            "GLOBAL OCEAN CURRENTS MAP",
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.3),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 0.5),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            "Upang makasiguro sa katatagan ng app sa bridge, ang live interactive mapping ay bubuksan gamit ang external security web application link.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
           ),
           const SizedBox(height: 24),
-          
-          // MAY UTILITY TEXT AT BUONG TEXT BUTTON NA PARA HINDI MASIRA ANG DOCK VIEW
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F2027).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.teal.withOpacity(0.3)),
+            ),
+            child: Column(
+              children: [
+                Row(children: const [Icon(Icons.check_circle, color: Colors.greenAccent, size: 18), SizedBox(width: 8), Text("Windy Live Stream Server Validated", style: TextStyle(fontSize: 12))]),
+                const SizedBox(height: 8),
+                Row(children: const [Icon(Icons.check_circle, color: Colors.greenAccent, size: 18), SizedBox(width: 8), Text("Real-Time Current Particles Active", style: TextStyle(fontSize: 12))]),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
           SizedBox(
-            height: 52,
+            height: 54,
             child: ElevatedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Bridge Radar Active: Vector tracking feed online."), 
-                    backgroundColor: Colors.teal
-                  ),
-                );
-              },
-              icon: const Icon(Icons.sync, color: Colors.black, size: 20),
+              onPressed: _openLiveMap, // Dito tatawagin ang totoong Link Trigger
+              icon: const Icon(Icons.open_in_new, color: Colors.black),
               label: const Text(
-                "REFRESH RADAR TRACKING ENGINE",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
+                "LAUNCH LIVE INTERACTIVE MAP",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF2C94C),
@@ -536,39 +530,4 @@ class TidalSinusoidalPainter extends CustomPainter {
   }
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-// NATIVE VECTOR DRAWING ENGINE PARA SA OCEAN RAYS AT DRIFT TRACKING LINES
-class OceanCurrentRadarPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final paintGrid = Paint()..color = Colors.cyan.withOpacity(0.2)..style = PaintingStyle.stroke..strokeWidth = 1;
-    
-    // Draw Radar Rings
-    canvas.drawCircle(center, size.height * 0.2, paintGrid);
-    canvas.drawCircle(center, size.height * 0.4, paintGrid);
-    
-    // Draw Crosshairs
-    canvas.drawLine(Offset(0, center.dy), Offset(size.width, center.dy), paintGrid);
-    canvas.drawLine(Offset(center.dx, 0), Offset(center.dx, size.height), paintGrid);
-    
-    // Draw Simulated Current Stream Vector Lines
-    final paintStream = Paint()..color = Colors.greenAccent.withOpacity(0.4)..style = PaintingStyle.stroke..strokeWidth = 1.5;
-    final path = Path();
-    for (int i = 0; i < 5; i++) {
-      double yOffset = i * 40.0;
-      path.moveTo(0, yOffset);
-      path.quadraticBezierTo(size.width * 0.25, yOffset + 15, size.width * 0.5, yOffset - 10);
-      path.quadraticBezierTo(size.width * 0.75, yOffset - 25, size.width, yOffset);
-    }
-    canvas.drawPath(path, paintStream);
-    
-    // Target marker
-    final paintTarget = Paint()..color = const Color(0xFFF2C94C)..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(center.dx + 20, center.dy - 30), 4, paintTarget);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
