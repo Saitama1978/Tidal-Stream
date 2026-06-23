@@ -83,14 +83,14 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _streamSpringMaxController = TextEditingController(text: "3.5");
   final _streamNeapMaxController = TextEditingController(text: "1.5");
 
-  // Default Results
+  // Default States
   double estimatedHeight = 1.18;
   double estimatedDrift = 2.42;
   double setDirection = 45.0;
   double advancedCalculatedRate = 1.24;
   double advancedSpringFactor = 92.0;
 
-  // Dito mase-save ang mga records kapag pinindot ang compute button
+  // Bridge Logbook State Storage
   final List<LogbookRecord> _logbookRecords = [
     LogbookRecord(
       id: "1",
@@ -124,7 +124,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         estimatedDrift = lw + (factor * (hw - lw));
         setDirection = double.tryParse(_directionController.text) ?? 0.0;
 
-        // Awtomatikong magpapasok ng bagong record sa listahan sa taas/unahan
+        // Awtomatikong magpapasok sa listahan ng records
         _logbookRecords.insert(
           0,
           LogbookRecord(
@@ -160,7 +160,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // FIXED DRAG DOWN DISMISSAL SHEET
+  // GUMAGANA AT MAI-DRAG DOWN NA USER MANUAL SHEET
   void _showUserGuide(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -176,7 +176,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           builder: (context, scrollController) {
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              // IMPORTANTE: Ipinasa ang scrollController para gumana ang drag down feature!
+              // Nakakabit na ang scrollController para pwedeng mai-swipe pababa upang isara
               child: ListView(
                 controller: scrollController,
                 physics: const ClampingScrollPhysics(),
@@ -213,8 +213,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                     title: "2. STANDARD GRAPH TAB (Drift & Set)",
                     body: "Pangunahing visual guide para sa pagkalkula ng bilis (Drift) at direksyon (Set) ng agos.\n\n"
                           "• Ipasok ang Lat/Long at Cardinal directions (N/S/E/W).\n"
-                          "• I-encode ang HW at LW Rates mula sa Tidal Stream Atlas o Diamonds sa unit na Knots (kts).\n"
-                          "• I-click ang COMPUTE & RECORD upang mag-plot sa Live Graph, magpakita sa Radar Crosshair, at awtomatikong mag-save sa Bridge Logbook list sa ibaba.",
+                          "• I-encode ang HW at LW Rates mula sa Tidal Stream Atlas sa unit na Knots (kts).\n"
+                          "• I-click ang COMPUTE & RECORD upang mag-plot sa Live Graph at awtomatikong mag-save sa Bridge Logbook sa ibaba.",
                   ),
                   _buildManualSection(
                     title: "3. ADVANCED TABLES (Dual-Interpolation)",
@@ -301,9 +301,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           ),
           child: TabBarView(
             children: [
-              SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildHeightTab()),
-              SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildStandardGraphTab()),
-              SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAdvancedTablesTab()),
+              WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildHeightTab())),
+              WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildStandardGraphTab())),
+              WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAdvancedTablesTab())),
             ],
           ),
         ),
@@ -392,75 +392,13 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 2: STANDARD GRAPH =================
+  // ================= TAB 2: STANDARD GRAPH (TINANGGAL ANG PRESET AT RADAR) =================
   Widget _buildStandardGraphTab() {
     return Form(
       key: _formKey2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F2027).withOpacity(0.8),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF1B3B47)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("LIVE POSITION RADAR VIEW", style: TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 0.8)),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_locationController.text, style: const TextStyle(color: Color(0xFFF2C94C), fontWeight: FontWeight.bold, fontSize: 14)),
-                          Text("LAT: ${_latDegController.text}.${_latMinController.text}° $_latDir", style: const TextStyle(color: Colors.grey, fontSize: 11, fontFamily: 'monospace')),
-                          Text("LNG: ${_longDegController.text}.${_longMinController.text}° $_longDir", style: const TextStyle(color: Colors.grey, fontSize: 11, fontFamily: 'monospace')),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: 70,
-                      height: 70,
-                      child: CustomPaint(painter: RadarGridPainter(setDirection)),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Icon(Icons.gps_fixed, color: Colors.redAccent, size: 12),
-                    SizedBox(width: 4),
-                    Text("GPS REF LOCK", style: TextStyle(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold)),
-                  ],
-                )
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1B2D36),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF2E4E58)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.public, color: Colors.cyanAccent, size: 18),
-                SizedBox(width: 10),
-                Text("Load Worldwide Preset Straits...", style: TextStyle(color: Colors.cyanAccent, fontSize: 13, fontWeight: FontWeight.w500)),
-                Spacer(),
-                Icon(Icons.arrow_drop_down, color: Colors.grey),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
           _buildInputWrapper(
             label: "Location / Voyage Leg",
             child: TextFormField(
@@ -614,17 +552,17 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ),
           ),
           const SizedBox(height: 20),
-          // FIXED LOGBOOK VIEW WITH DELETE BUTTON
+          // BRIDGE LOGBOOK LISTAHAN NA MAY DELETE ICON BUTTON
           const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5)),
           const SizedBox(height: 8),
           _logbookRecords.isEmpty
               ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text("No records available.", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: Text("No records available.", style: TextStyle(color: Colors.grey, fontSize: 12))),
                 )
               : ListView.builder(
                   shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(), // Naka-embed sa main scroll ng body
+                  physics: const NeverScrollableScrollPhysics(), // Sumasabay sa scroll ng tab body natin
                   itemCount: _logbookRecords.length,
                   itemBuilder: (context, index) {
                     final item = _logbookRecords[index];
@@ -651,8 +589,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                             ),
                           ),
                           Text("${item.drift.toStringAsFixed(2)} kts", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.greenAccent)),
-                          const SizedBox(width: 12),
-                          // ITO ANG DELETE BUTTON NA HININGI MO, CHIEF!
+                          const SizedBox(width: 8),
+                          // HETO NA ANG MATALAS NA DELETE BUTTON, CHIEF!
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                             onPressed: () {
@@ -814,30 +752,24 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 }
 
-class RadarGridPainter extends CustomPainter {
-  final double headingDegrees;
-  RadarGridPainter(this.headingDegrees);
+// Para i-preserve ang input text states kapag lumilipat ng tabs
+class WidgetKeepAlive extends StatefulWidget {
+  final Widget child;
+  const WidgetKeepAlive({super.key, required this.child});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-    final gridPaint = Paint()..color = Colors.teal.withOpacity(0.4)..style = PaintingStyle.stroke..strokeWidth = 1.0;
+  State<WidgetKeepAlive> createState() => _WidgetKeepAliveState();
+}
 
-    canvas.drawCircle(center, radius, gridPaint);
-    canvas.drawCircle(center, radius * 0.66, gridPaint);
-    canvas.drawCircle(center, radius * 0.33, gridPaint);
-    canvas.drawLine(Offset(center.dx - radius, center.dy), Offset(center.dx + radius, center.dy), gridPaint);
-    canvas.drawLine(Offset(center.dx, center.dy - radius), Offset(center.dx, center.dy + radius), gridPaint);
-    canvas.drawCircle(center, 3.5, Paint()..color = Colors.redAccent..style = PaintingStyle.fill);
+class _WidgetKeepAliveState extends State<WidgetKeepAlive> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
 
-    final headingPaint = Paint()..color = const Color(0xFFF2C94C)..style = PaintingStyle.stroke..strokeWidth = 2.0;
-    double radians = (headingDegrees - 90) * pi / 180;
-    canvas.drawLine(center, Offset(center.dx + radius * cos(radians), center.dy + radius * sin(radians)), headingPaint);
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 class TidalSinusoidalPainter extends CustomPainter {
