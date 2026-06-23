@@ -173,7 +173,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(height: 15),
 
-                // 2. WORLDWIDE PRESETS DROPDOWN
+                // 2. WORLDWIDE PRESETS DROPDOWN (Naitama na ang typo dito)
                 Card(
                   color: Colors.black26,
                   shape: RoundedRectangleBorder(
@@ -187,7 +187,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                         hint: const Row(
                           children: [
                             Icon(Icons.public, color: Colors.cyanAccent),
-                            SExpanding: Text("Load Worldwide Preset Straits...", style: TextStyle(color: Colors.cyanAccent)),
+                            SizedBox(width: 10),
+                            Text("Load Worldwide Preset Straits...", style: TextStyle(color: Colors.cyanAccent)),
                           ],
                         ),
                         dropdownColor: const Color(0xFF0F2027),
@@ -342,7 +343,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 }
 
-// 🎨 FIXED MARINE RADAR VIEW ENGINE PAINTER (Selyadong .dx at .dy Fix)
 class MarineRadarPainter extends CustomPainter {
   final double direction;
   MarineRadarPainter({required this.direction});
@@ -361,7 +361,6 @@ class MarineRadarPainter extends CustomPainter {
     canvas.drawCircle(center, radius * 0.66, ringPaint);
     canvas.drawCircle(center, radius * 0.33, ringPaint);
 
-    // DART:UI STRICT REPLACEMENT FORMULA (.dx, .dy)
     canvas.drawLine(Offset(center.dx - radius, center.dy), Offset(center.dx + radius, center.dy), ringPaint);
     canvas.drawLine(Offset(center.dx, center.dy - radius), Offset(center.dx, center.dy + radius), ringPaint);
 
