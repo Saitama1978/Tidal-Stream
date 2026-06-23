@@ -41,31 +41,21 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _lwRateController = TextEditingController(text: "1.2");
   final _timeFromHWController = TextEditingController(text: "3.5");
   final _directionController = TextEditingController(text: "045");
-  final _locationController = TextEditingController(text: "Current Passage Location");
+  final _locationController = TextEditingController(); // Iniwang walang default para makita ang hint text
 
   double? calculatedRate;
   double? calculatedDirection;
   List<Map<String, String>> calculationLog = [];
-  String currentMapUrl = "https://www.openstreetmap.org/#map=10/12.5125/124.2847"; // Default San Bernardino
+  
+  // Gagamit ng coordinates para sa automatic background browser system link
+  String mapQuery = "12.5125,124.2847"; 
 
-  // Worldwide Preset Locations with pre-generated Map view links
+  // Worldwide Preset Locations
   final List<Map<String, dynamic>> presets = [
-    {
-      "name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125",
-      "mapUrl": "https://www.openstreetmap.org/#map=12/12.5125/124.2847"
-    },
-    {
-      "name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075",
-      "mapUrl": "https://www.openstreetmap.org/#map=12/1.2800/104.1000"
-    },
-    {
-      "name": "English Channel (Dover)", "hw": "3.8", "lw": "0.5", "dir": "240",
-      "mapUrl": "https://www.openstreetmap.org/#map=12/51.1278/1.3132"
-    },
-    {
-      "name": "Malacca Strait", "hw": "2.5", "lw": "0.4", "dir": "310",
-      "mapUrl": "https://www.openstreetmap.org/#map=11/2.5000/101.5000"
-    },
+    {"name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125", "coords": "12.5125,124.2847"},
+    {"name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075", "coords": "1.2800,104.1000"},
+    {"name": "English Channel (Dover)", "hw": "3.8", "lw": "0.5", "dir": "240", "coords": "51.1278,1.3132"},
+    {"name": "Malacca Strait", "hw": "2.5", "lw": "0.4", "dir": "310", "coords": "2.5000,101.5000"},
   ];
 
   void _loadPreset(Map<String, dynamic> preset) {
@@ -74,20 +64,12 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       _hwRateController.text = preset["hw"]!;
       _lwRateController.text = preset["lw"]!;
       _directionController.text = preset["dir"]!;
-      currentMapUrl = preset["mapUrl"]!;
+      mapQuery = preset["coords"]!;
     });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("📌 Coordinates loaded for ${preset["name"]}!"),
-        backgroundColor: Colors.teal,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   void _calculateTidalStream() {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate() && _locationController.text.isNotEmpty) {
       double hwRate = double.parse(_hwRateController.text);
       double lwRate = double.parse(_lwRateController.text);
       double timeFromHW = double.parse(_timeFromHWController.text);
@@ -100,7 +82,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         calculatedRate = lwRate + (factor * (hwRate - lwRate));
         calculatedDirection = direction;
 
-        // Unique ID gamit ang timestamps para sa safe deletion
         calculationLog.insert(0, {
           "id": DateTime.now().millisecondsSinceEpoch.toString(),
           "loc": _locationController.text,
@@ -109,10 +90,16 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           "time": "${timeFromHW.toStringAsFixed(1)}h from HW"
         });
       });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("⚠️ Please type or select a Location/Voyage Leg first!"),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
 
-  // 🗑️ FUNCTION PARA MAGBURA NG RECORD SA LOGBOOK
   void _deleteLogItem(String id) {
     setState(() {
       calculationLog.removeWhere((item) => item["id"] == id);
@@ -200,28 +187,46 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(height: 15),
 
-                // 2. INTERACTIVE MAP VIEW LINK BUTTON
-                ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  backgroundColor: Colors.teal.shade700,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ).buildMapButton(
-                  context: context,
-                  url: currentMapUrl,
+                // 2. NATIVE WEB MAP ACCELERATOR BUTTON
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: Colors.teal.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    // Diretsong tinatawag ang default web application wrapper nang walang dependencies
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("🌐 Open Web Navigation Map for: ${_locationController.text.isEmpty ? 'Default Area' : _locationController.text}"),
+                        backgroundColor: Colors.teal,
+                      ),
+                    );
+                  },
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.map_outlined, size: 20),
+                      SizedBox(width: 8),
+                      Text("VIEW PRESET ON MARINE MAP", style: TextStyle(fontWeight: FontWeight.w600)),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 15),
 
                 // Calculate Button
-                ElevatedButton(
-                  onPressed: _calculateTidalStream,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: const Color(0xFFF2C94C),
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ButtonTheme(
+                  child: ElevatedButton(
+                    onPressed: _calculateTidalStream,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: const Color(0xFFF2C94C),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
-                  child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
                 
                 // Live Graph Result Card
@@ -255,7 +260,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   ),
                 ],
 
-                // 3. PASSAGE LOGBOOK WITH DELETE BUTTON
+                // 3. PASSAGE LOGBOOK RECORD
                 if (calculationLog.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -279,7 +284,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                             children: [
                               Text(log["rate"]!, style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14)),
                               const SizedBox(width: 6),
-                              // 🔴 ITO NA ANG NAKALAGAY NA DELETE BUTTON
                               IconButton(
                                 icon: const Icon(Icons.delete_sweep, color: Colors.redAccent, size: 22),
                                 onPressed: () => _deleteLogItem(log["id"]!),
@@ -358,29 +362,4 @@ class TidalCurvePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-// Map Launcher extension style integration helper
-extension on ButtonStyle {
-  Widget buildMapButton({required BuildContext context, required String url}) {
-    return ElevatedButton(
-      style: this,
-      onPressed: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("🗺️ Opening Live Positioning Map Reference View..."),
-            backgroundColor: Colors.blueGrey,
-          ),
-        );
-      },
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.map_outlined, size: 20),
-          SizedBox(width: 8),
-          Text("VIEW PRESET ON MARINE MAP", style: TextStyle(fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
 }
