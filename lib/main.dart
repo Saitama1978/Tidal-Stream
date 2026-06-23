@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong2.dart';
 
 void main() {
   runApp(const TidalStreamApp());
@@ -36,6 +38,7 @@ class TidalCalculatorHomePage extends StatefulWidget {
 
 class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _formKey = GlobalKey<FormState>();
+  final MapController _mapController = MapController();
   
   final _hwRateController = TextEditingController(text: "4.5");
   final _lwRateController = TextEditingController(text: "1.2");
@@ -46,21 +49,24 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   double? calculatedRate;
   double? calculatedDirection;
   List<Map<String, String>> calculationLog = [];
+  LatLng currentMapCenter = const LatLng(12.5000, 124.3000); // Default coordinates: San Bernardino
 
-  // Worldwide Preset Locations
-  final List<Map<String, String>> presets = [
-    {"name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125"},
-    {"name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075"},
-    {"name": "English Channel (Dover)", "hw": "3.8", "lw": "0.5", "dir": "240"},
-    {"name": "Malacca Strait", "hw": "2.5", "lw": "0.4", "dir": "310"},
+  // Worldwide Preset Locations with Lat/Long Coordinates
+  final List<Map<String, dynamic>> presets = [
+    {"name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125", "lat": 12.5125, "lng": 124.2847},
+    {"name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075", "lat": 1.2800, "lng": 104.1000},
+    {"name": "English Channel (Dover)", "hw": "3.8", "lw": "0.5", "dir": "240", "lat": 51.1278, "lng": 1.3132},
+    {"name": "Malacca Strait", "hw": "2.5", "lw": "0.4", "dir": "310", "lat": 2.5000, "lng": 101.5000},
   ];
 
-  void _loadPreset(Map<String, String> preset) {
+  void _loadPreset(Map<String, dynamic> preset) {
     setState(() {
       _locationController.text = preset["name"]!;
       _hwRateController.text = preset["hw"]!;
       _lwRateController.text = preset["lw"]!;
       _directionController.text = preset["dir"]!;
+      currentMapCenter = LatLng(preset["lat"], preset["lng"]);
+      _mapController.move(currentMapCenter, 11.0);
     });
   }
 
@@ -71,7 +77,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       double timeFromHW = double.parse(_timeFromHWController.text);
       double direction = double.parse(_directionController.text);
 
-      // Marine Standard Cosine Interpolation
       double angle = (timeFromHW.clamp(0.0, 6.0) / 6.0) * pi;
       double factor = (cos(angle) + 1) / 2;
       
@@ -79,8 +84,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         calculatedRate = lwRate + (factor * (hwRate - lwRate));
         calculatedDirection = direction;
 
-        // Save to History Log
         calculationLog.insert(0, {
+          "id": DateTime.now().millisecondsSinceEpoch.toString(),
           "loc": _locationController.text,
           "rate": "${calculatedRate!.toStringAsFixed(2)} kts",
           "dir": "${calculatedDirection!.toStringAsFixed(0)}°",
@@ -90,13 +95,19 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
+  void _deleteLogItem(String id) {
+    setState(() {
+      calculationLog.removeWhere((item) => item["id"] == id);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'TIDAL STREAM PRO',
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2.0, color: Color(0xFFF2C94C)),
+          'TIDAL STREAM WORLDWIDE',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5, color: Color(0xFFF2C94C)),
         ),
         centerTitle: true,
         backgroundColor: const Color(0xFF0F2027),
@@ -117,7 +128,45 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. WORLDWIDE PRESETS DROPDOWN
+                // 1. DYNAMIC INTERACTIVE MAP LAYER
+                const Text("POSITION REFERENCE MAP", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
+                const SizedBox(height: 6),
+                Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFF2C94C), width: 1),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: currentMapCenter,
+                        initialZoom: 10.0,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          subdomains: const ['a', 'b', 'c'],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: currentMapCenter,
+                              width: 40,
+                              height: 40,
+                              child: const Icon(Icons.navigation, color: Colors.redAccent, size: 35),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
+
+                // 2. WORLDWIDE PRESETS DROPDOWN
                 Card(
                   color: Colors.black26,
                   shape: RoundedRectangleBorder(
@@ -127,7 +176,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<Map<String, String>>(
+                      child: DropdownButton<Map<String, dynamic>>(
                         hint: const Row(
                           children: [
                             Icon(Icons.public, color: Colors.cyanAccent),
@@ -137,7 +186,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                         ),
                         dropdownColor: const Color(0xFF0F2027),
                         items: presets.map((preset) {
-                          return DropdownMenuItem<Map<String, String>>(
+                          return DropdownMenuItem<Map<String, dynamic>>(
                             value: preset,
                             child: Text(preset["name"]!),
                           );
@@ -171,7 +220,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Calculate Button
+                // Compute Button
                 ElevatedButton(
                   onPressed: _calculateTidalStream,
                   style: ElevatedButton.styleFrom(
@@ -183,7 +232,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
                 
-                // 2. LIVE INTERPOLATION GRAPH
+                // Live Graph Result Card
                 if (calculatedRate != null) ...[
                   const SizedBox(height: 20),
                   Container(
@@ -214,13 +263,13 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   ),
                 ],
 
-                // 3. PASSAGE LOGBOOK
+                // 3. PASSAGE LOGBOOK WITH QUICK DELETE FUNCTION
                 if (calculationLog.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
                   const SizedBox(height: 8),
                   Container(
-                    constraints: const BoxConstraints(maxHeight: 180),
+                    constraints: const BoxConstraints(maxHeight: 220),
                     decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
                     child: ListView.builder(
                       shrinkWrap: true,
@@ -233,7 +282,17 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                           leading: const Icon(Icons.assignment, color: Color(0xFFF2C94C)),
                           title: Text(log["loc"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text("${log["time"]} | Dir: ${log["dir"]}"),
-                          trailing: Text(log["rate"]!, style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14)),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(log["rate"]!, style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14)),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                onPressed: () => _deleteLogItem(log["id"]!),
+                              ),
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -255,7 +314,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFFF2C94C)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFF2C94C))), // Inayos na BorderSide dito
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFF2C94C))),
         filled: true,
         fillColor: Colors.black12,
       ),
@@ -272,7 +331,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 }
 
-// Custom Painter
 class TidalCurvePainter extends CustomPainter {
   final double timeFromHW;
   TidalCurvePainter(this.timeFromHW);
