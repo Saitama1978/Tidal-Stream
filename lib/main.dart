@@ -46,15 +46,12 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   double? calculatedRate;
   double? calculatedDirection;
   List<Map<String, String>> calculationLog = [];
-  
-  double currentLat = 12.5125;
-  double currentLng = 124.2847;
 
   final List<Map<String, dynamic>> presets = [
-    {"name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125", "lat": 12.5125, "lng": 124.2847},
-    {"name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075", "lat": 1.2800, "lng": 104.1000},
-    {"name": "English Channel (Dover)", "hw": "3.8", "lw": "0.5", "dir": "240", "lat": 51.1278, "lng": 1.3132},
-    {"name": "Malacca Strait", "hw": "2.5", "lw": "0.4", "dir": "310", "lat": 2.5000, "lng": 101.5000},
+    {"name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125"},
+    {"name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075"},
+    {"name": "English Channel (Dover)", "hw": "3.8", "lw": "0.5", "dir": "240"},
+    {"name": "Malacca Strait", "hw": "2.5", "lw": "0.4", "dir": "310"},
   ];
 
   void _loadPreset(Map<String, dynamic> preset) {
@@ -63,8 +60,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       _hwRateController.text = preset["hw"]!;
       _lwRateController.text = preset["lw"]!;
       _directionController.text = preset["dir"]!;
-      currentLat = preset["lat"]!;
-      currentLng = preset["lng"]!;
     });
   }
 
@@ -126,54 +121,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 🗺️ 1. BUILT-IN RADAR MAP RADIAL MONITOR
-                const Text("LIVE POSITION RADAR VIEW", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
-                const SizedBox(height: 6),
-                Container(
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 1),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
-                    child: Stack(
-                      children: [
-                        CustomPaint(
-                          size: const Size(double.infinity, 180),
-                          painter: MarineRadarPainter(direction: double.tryParse(_directionController.text) ?? 0.0),
-                        ),
-                        Positioned(
-                          top: 10,
-                          left: 12,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(_locationController.text.isEmpty ? "No Target Selected" : _locationController.text, style: const TextStyle(color: Color(0xFFF2C94C), fontWeight: FontWeight.bold, fontSize: 14)),
-                              Text("LAT: ${currentLat.toStringAsFixed(4)}° N", style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'monospace')),
-                              Text("LNG: ${currentLng.toStringAsFixed(4)}° E", style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'monospace')),
-                            ],
-                          ),
-                        ),
-                        const Positioned(
-                          bottom: 10,
-                          right: 12,
-                          child: Row(
-                            children: [
-                              Icon(Icons.gps_fixed, color: Colors.redAccent, size: 12),
-                              SizedBox(width: 4),
-                              Text("GPS REF LOCK", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 15),
-
-                // 2. WORLDWIDE PRESETS DROPDOWN (Naitama na ang typo dito)
+                // 1. WORLDWIDE PRESETS DROPDOWN
                 Card(
                   color: Colors.black26,
                   shape: RoundedRectangleBorder(
@@ -222,7 +170,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   children: [
                     Expanded(child: _buildInputField(controller: _timeFromHWController, label: "Time fr. HW (hrs)", icon: Icons.access_time)),
                     const SizedBox(width: 12),
-                    Expanded(child: _buildInputField(controller: _directionController, label: "Direction (°)", icon: Icons.navigation, isDirection: true)),
+                    Expanded(child: _buildInputField(controller: _directionController, label: "Direction (°)", icon: Icons.navigation)),
                   ],
                 ),
                 const SizedBox(height: 15),
@@ -239,7 +187,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
                 
-                // Live Graph Result Card
+                // 2. INTERPOLATION LIVE GRAPH (Lilitaw agad pagka-pindot ng Compute)
                 if (calculatedRate != null) ...[
                   const SizedBox(height: 20),
                   Container(
@@ -313,15 +261,10 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  Widget _buildInputField({required TextEditingController controller, required String label, required IconData icon, bool isText = false, bool isDirection = false}) {
+  Widget _buildInputField({required TextEditingController controller, required String label, required IconData icon, bool isText = false}) {
     return TextFormField(
       controller: controller,
       keyboardType: isText ? TextInputType.text : const TextInputType.numberWithOptions(decimal: true),
-      onChanged: (val) {
-        if (isDirection) {
-          setState(() {}); 
-        }
-      },
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFFF2C94C)),
@@ -341,48 +284,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       ],
     );
   }
-}
-
-class MarineRadarPainter extends CustomPainter {
-  final double direction;
-  MarineRadarPainter({required this.direction});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = min(size.width, size.height) * 0.45;
-
-    final ringPaint = Paint()
-      ..color = Colors.cyanAccent.withOpacity(0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    canvas.drawCircle(center, radius, ringPaint);
-    canvas.drawCircle(center, radius * 0.66, ringPaint);
-    canvas.drawCircle(center, radius * 0.33, ringPaint);
-
-    canvas.drawLine(Offset(center.dx - radius, center.dy), Offset(center.dx + radius, center.dy), ringPaint);
-    canvas.drawLine(Offset(center.dx, center.dy - radius), Offset(center.dx, center.dy + radius), ringPaint);
-
-    double radians = (direction - 90) * pi / 180;
-    final vectorX = center.dx + radius * cos(radians);
-    final vectorY = center.dy + radius * sin(radians);
-
-    final streamPaint = Paint()
-      ..color = const Color(0xFFF2C94C)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-
-    canvas.drawLine(center, Offset(vectorX, vectorY), streamPaint);
-    
-    final blipPaint = Paint()
-      ..color = Colors.redAccent
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 5, blipPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 class TidalCurvePainter extends CustomPainter {
