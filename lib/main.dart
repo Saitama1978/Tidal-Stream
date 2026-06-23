@@ -39,7 +39,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   
   final _locationController = TextEditingController(text: "San Bernardino Strait");
   
-  // New Manual Position Controllers
+  // 🌐 Manual Position Input Fields (Walang GPS dependency)
   final _latDegController = TextEditingController(text: "12");
   final _latMinController = TextEditingController(text: "30.75");
   String _latSign = "N";
@@ -93,7 +93,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         calculatedRate = lwRate + (factor * (hwRate - lwRate));
         calculatedDirection = direction;
 
-        // Formatted coordinate readout for the logbook entry
         String posReadout = "${_latDegController.text}° ${_latMinController.text}' $_latSign | ${_lngDegController.text}° ${_lngMinController.text}' $_lngSign";
 
         calculationLog.insert(0, {
@@ -141,7 +140,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. WORLDWIDE PRESETS DROPDOWN
+                // 1. Dropdown para sa Presets
                 Card(
                   color: Colors.black26,
                   shape: RoundedRectangleBorder(
@@ -175,20 +174,20 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Main Location Input
+                // Location Field
                 _buildInputField(controller: _locationController, label: "Location / Voyage Leg", icon: Icons.map, isText: true),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                // 🌐 MANUAL POSITION INPUT SYSTEM (LAT/LONG WITH MINUTES & SIGNS)
-                const Text("MANUAL VESSEL POSITION", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.cyanAccent, letterSpacing: 1)),
-                const SizedBox(height: 6),
+                // 🌐 POSITION INPUTS (LAT/LONG WITH MINUTES & SIGN)
+                const Text("POSITION SPECIFICATION", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.cyanAccent, letterSpacing: 1)),
+                const SizedBox(height: 8),
                 
-                // Latitude Row (Deg, Min, Sign)
+                // Latitude System (Deg, Min, N/S Dropdown)
                 Row(
                   children: [
                     Expanded(flex: 3, child: _buildInputField(controller: _latDegController, label: "Lat Deg (°)", icon: Icons.explore)),
                     const SizedBox(width: 8),
-                    Expanded(flex: 4, child: _buildInputField(controller: _latMinController, label: "Lat Min (')", icon: Icons.shutter_speed_outlined)),
+                    Expanded(flex: 4, child: _buildInputField(controller: _latMinController, label: "Lat Min (')", icon: Icons.timer_outlined)),
                     const SizedBox(width: 8),
                     Expanded(
                       flex: 3,
@@ -212,14 +211,14 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
 
-                // Longitude Row (Deg, Min, Sign)
+                // Longitude System (Deg, Min, E/W Dropdown)
                 Row(
                   children: [
                     Expanded(flex: 3, child: _buildInputField(controller: _lngDegController, label: "Long Deg (°)", icon: Icons.explore_outlined)),
                     const SizedBox(width: 8),
-                    Expanded(flex: 4, child: _buildInputField(controller: _lngMinController, label: "Long Min (')", icon: Icons.shutter_speed_outlined)),
+                    Expanded(flex: 4, child: _buildInputField(controller: _lngMinController, label: "Long Min (')", icon: Icons.timer_outlined)),
                     const SizedBox(width: 8),
                     Expanded(
                       flex: 3,
@@ -243,9 +242,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
 
-                // Calculation Parameters Row 1
+                // Rates Fields
                 Row(
                   children: [
                     Expanded(child: _buildInputField(controller: _hwRateController, label: "HW Rate (kts)", icon: Icons.trending_up)),
@@ -255,7 +254,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Calculation Parameters Row 2
+                // Time & Direction Fields
                 Row(
                   children: [
                     Expanded(child: _buildInputField(controller: _timeFromHWController, label: "Time fr. HW (hrs)", icon: Icons.access_time)),
@@ -265,7 +264,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Calculate Button
+                // Action Button
                 ElevatedButton(
                   onPressed: _calculateTidalStream,
                   style: ElevatedButton.styleFrom(
@@ -277,7 +276,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
                 
-                // 2. INTERPOLATION LIVE GRAPH (Lilitaw pagka-pindot ng Compute)
+                // Graph Display
                 if (calculatedRate != null) ...[
                   const SizedBox(height: 20),
                   Container(
@@ -308,7 +307,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   ),
                 ],
 
-                // 3. BRIDGE LOGBOOK RECORD
+                // Logbook section
                 if (calculationLog.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -365,8 +364,14 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFFF2C94C), size: 20),
         contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFF2C94C))),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8), 
+          borderSide: const BorderSide(color: Colors.grey)
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8), 
+          borderSide: const BorderSide(color: Color(0xFFF2C94C))
+        ),
         filled: true,
         fillColor: Colors.black12,
       ),
