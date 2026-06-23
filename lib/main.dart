@@ -47,12 +47,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   double? calculatedDirection;
   List<Map<String, String>> calculationLog = [];
   
-  // Coordinates default Tracker (San Bernardino Strait)
   double currentLat = 12.5125;
   double currentLng = 124.2847;
-  bool showRadarMap = true; // Naka-auto true na para laging visible ang radar grid
 
-  // Worldwide Preset Locations with coordinates
   final List<Map<String, dynamic>> presets = [
     {"name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125", "lat": 12.5125, "lng": 124.2847},
     {"name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075", "lat": 1.2800, "lng": 104.1000},
@@ -68,7 +65,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       _directionController.text = preset["dir"]!;
       currentLat = preset["lat"]!;
       currentLng = preset["lng"]!;
-      showRadarMap = true; 
     });
   }
 
@@ -130,54 +126,52 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. DYNAMIC NATIVE VISUAL RADAR MAP (Walang loading, lilitaw agad dito!)
-                if (showRadarMap) ...[
-                  const Text("LIVE POSITION RADAR VIEW", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 1),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(11),
-                      child: Stack(
-                        children: [
-                          CustomPaint(
-                            size: const Size(double.infinity, 180),
-                            painter: MarineRadarPainter(direction: double.tryParse(_directionController.text) ?? 0.0),
+                // 🗺️ 1. BUILT-IN RADAR MAP RADIAL MONITOR
+                const Text("LIVE POSITION RADAR VIEW", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
+                const SizedBox(height: 6),
+                Container(
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 1),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: Stack(
+                      children: [
+                        CustomPaint(
+                          size: const Size(double.infinity, 180),
+                          painter: MarineRadarPainter(direction: double.tryParse(_directionController.text) ?? 0.0),
+                        ),
+                        Positioned(
+                          top: 10,
+                          left: 12,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_locationController.text.isEmpty ? "No Target Selected" : _locationController.text, style: const TextStyle(color: Color(0xFFF2C94C), fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text("LAT: ${currentLat.toStringAsFixed(4)}° N", style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'monospace')),
+                              Text("LNG: ${currentLng.toStringAsFixed(4)}° E", style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'monospace')),
+                            ],
                           ),
-                          Positioned(
-                            top: 10,
-                            left: 12,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_locationController.text.isEmpty ? "No Target Selected" : _locationController.text, style: const TextStyle(color: Color(0xFFF2C94C), fontWeight: FontWeight.bold, fontSize: 14)),
-                                Text("LAT: ${currentLat.toStringAsFixed(4)}° N", style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'monospace')),
-                                Text("LNG: ${currentLng.toStringAsFixed(4)}° E", style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'monospace')),
-                              ],
-                            ),
+                        ),
+                        const Positioned(
+                          bottom: 10,
+                          right: 12,
+                          child: Row(
+                            children: [
+                              Icon(Icons.gps_fixed, color: Colors.redAccent, size: 12),
+                              SizedBox(width: 4),
+                              Text("GPS REF LOCK", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ],
                           ),
-                          const Positioned(
-                            bottom: 10,
-                            right: 12,
-                            child: Row(
-                              children: [
-                                Icon(Icons.gps_fixed, color: Colors.redAccent, size: 12),
-                                SizedBox(width: 4),
-                                Text("GPS REF LOCK", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          )
-                        ],
-                      ),
+                        )
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 15),
-                ],
+                ),
+                const SizedBox(height: 15),
 
                 // 2. WORLDWIDE PRESETS DROPDOWN
                 Card(
@@ -193,8 +187,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                         hint: const Row(
                           children: [
                             Icon(Icons.public, color: Colors.cyanAccent),
-                            SizedBox(width: 10),
-                            Text("Load Worldwide Preset Straits...", style: TextStyle(color: Colors.cyanAccent)),
+                            SExpanding: Text("Load Worldwide Preset Straits...", style: TextStyle(color: Colors.cyanAccent)),
                           ],
                         ),
                         dropdownColor: const Color(0xFF0F2027),
@@ -276,7 +269,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   ),
                 ],
 
-                // 3. PASSAGE LOGBOOK RECORD WITH IMMEDIATE DELETION
+                // 3. BRIDGE LOGBOOK RECORD
                 if (calculationLog.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -325,7 +318,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       keyboardType: isText ? TextInputType.text : const TextInputType.numberWithOptions(decimal: true),
       onChanged: (val) {
         if (isDirection) {
-          setState(() {}); // Dynamic redraw sa Radar kapag pinalitan ang degrees
+          setState(() {}); 
         }
       },
       decoration: InputDecoration(
@@ -349,7 +342,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 }
 
-// 🎨 MARITIME RADAR VIEW ENGINE PAINTER
+// 🎨 FIXED MARINE RADAR VIEW ENGINE PAINTER (Selyadong .dx at .dy Fix)
 class MarineRadarPainter extends CustomPainter {
   final double direction;
   MarineRadarPainter({required this.direction});
@@ -364,29 +357,25 @@ class MarineRadarPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
-    // Magdodrow ng radar concentration rings
     canvas.drawCircle(center, radius, ringPaint);
     canvas.drawCircle(center, radius * 0.66, ringPaint);
     canvas.drawCircle(center, radius * 0.33, ringPaint);
 
-    // Radar crosshair center lines
-    canvas.drawLine(Offset(center.x - radius, center.y), Offset(center.x + radius, center.y), ringPaint);
-    canvas.drawLine(Offset(center.x, center.y - radius), Offset(center.x, center.y + radius), ringPaint);
+    // DART:UI STRICT REPLACEMENT FORMULA (.dx, .dy)
+    canvas.drawLine(Offset(center.dx - radius, center.dy), Offset(center.dx + radius, center.dy), ringPaint);
+    canvas.drawLine(Offset(center.dx, center.dy - radius), Offset(center.dx, center.dy + radius), ringPaint);
 
-    // Kukuha ng mathematical sweep vector mula sa Stream Direction input mo
     double radians = (direction - 90) * pi / 180;
-    final vectorX = center.x + radius * cos(radians);
-    final vectorY = center.y + radius * sin(radians);
+    final vectorX = center.dx + radius * cos(radians);
+    final vectorY = center.dy + radius * sin(radians);
 
     final streamPaint = Paint()
       ..color = const Color(0xFFF2C94C)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
-    // Vector line pointer ng agos
     canvas.drawLine(center, Offset(vectorX, vectorY), streamPaint);
     
-    // Blip marker kung nasaan ang barko
     final blipPaint = Paint()
       ..color = Colors.redAccent
       ..style = PaintingStyle.fill;
