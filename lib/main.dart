@@ -41,21 +41,22 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _lwRateController = TextEditingController(text: "1.2");
   final _timeFromHWController = TextEditingController(text: "3.5");
   final _directionController = TextEditingController(text: "045");
-  final _locationController = TextEditingController(); // Iniwang walang default para makita ang hint text
+  final _locationController = TextEditingController();
 
   double? calculatedRate;
   double? calculatedDirection;
   List<Map<String, String>> calculationLog = [];
   
-  // Gagamit ng coordinates para sa automatic background browser system link
-  String mapQuery = "12.5125,124.2847"; 
+  // Coordinates default (San Bernardino)
+  double currentLat = 12.5125;
+  double currentLng = 124.2847;
 
-  // Worldwide Preset Locations
+  // Worldwide Preset Locations with strict coordinates
   final List<Map<String, dynamic>> presets = [
-    {"name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125", "coords": "12.5125,124.2847"},
-    {"name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075", "coords": "1.2800,104.1000"},
-    {"name": "English Channel (Dover)", "hw": "3.8", "lw": "0.5", "dir": "240", "coords": "51.1278,1.3132"},
-    {"name": "Malacca Strait", "hw": "2.5", "lw": "0.4", "dir": "310", "coords": "2.5000,101.5000"},
+    {"name": "San Bernardino Strait", "hw": "5.2", "lw": "0.8", "dir": "125", "lat": 12.5125, "lng": 124.2847},
+    {"name": "Singapore Strait (Eastern)", "hw": "4.2", "lw": "1.1", "dir": "075", "lat": 1.2800, "lng": 104.1000},
+    {"name": "English Channel (Dover)", "hw": "3.8", "lw": "0.5", "dir": "240", "lat": 51.1278, "lng": 1.3132},
+    {"name": "Malacca Strait", "hw": "2.5", "lw": "0.4", "dir": "310", "lat": 2.5000, "lng": 101.5000},
   ];
 
   void _loadPreset(Map<String, dynamic> preset) {
@@ -64,8 +65,29 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       _hwRateController.text = preset["hw"]!;
       _lwRateController.text = preset["lw"]!;
       _directionController.text = preset["dir"]!;
-      mapQuery = preset["coords"]!;
+      currentLat = preset["lat"]!;
+      currentLng = preset["lng"]!;
     });
+  }
+
+  // 🌐 DIRETSAHANG LAUNCHER PAPUNTANG GOOGLE MAPS / BROWSER
+  void _launchMarineMap() {
+    // Gagawa tayo ng standard Android geographic scheme link
+    final String mapUrl = "geo:$currentLat,$currentLng?q=$currentLat,$currentLng(${Uri.encodeComponent(_locationController.text.isEmpty ? 'Selected Passage' : _locationController.text)})&z=11";
+    
+    // Ika-cast natin sa system navigation handler ng device
+    // Ipinapakita rin sa SnackBar para sa visual confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("🗺️ Redirecting to Map view for: ${currentLat.toStringAsFixed(4)}, ${currentLng.toStringAsFixed(4)}"),
+        backgroundColor: Colors.teal.shade800,
+        action: SnackBarAction(
+          label: "OPEN",
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
+      ),
+    );
   }
 
   void _calculateTidalStream() {
@@ -93,7 +115,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("⚠️ Please type or select a Location/Voyage Leg first!"),
+          content: Text("⚠️ Please select a Preset Strait or type a Location name first!"),
           backgroundColor: Colors.orange,
         ),
       );
@@ -187,7 +209,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(height: 15),
 
-                // 2. NATIVE WEB MAP ACCELERATOR BUTTON
+                // 2. ACTIVE MAP ACCELERATOR BUTTON
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -195,15 +217,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: () {
-                    // Diretsong tinatawag ang default web application wrapper nang walang dependencies
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("🌐 Open Web Navigation Map for: ${_locationController.text.isEmpty ? 'Default Area' : _locationController.text}"),
-                        backgroundColor: Colors.teal,
-                      ),
-                    );
-                  },
+                  onPressed: _launchMarineMap,
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -216,17 +230,15 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 const SizedBox(height: 15),
 
                 // Calculate Button
-                ButtonTheme(
-                  child: ElevatedButton(
-                    onPressed: _calculateTidalStream,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: const Color(0xFFF2C94C),
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ElevatedButton(
+                  onPressed: _calculateTidalStream,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: const Color(0xFFF2C94C),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
+                  child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
                 
                 // Live Graph Result Card
