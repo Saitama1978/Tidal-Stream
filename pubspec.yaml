@@ -1,5 +1,6 @@
-name: tidal_stream_calculator
-description: A Tidal Stream Calculator for Passage Planning.
+name: tidal_stream
+description: "A professional worldwide tidal stream calculator for marine navigation."
+publish_to: 'none'
 version: 1.0.0+1
 
 environment:
@@ -8,10 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
