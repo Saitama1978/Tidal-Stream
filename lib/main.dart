@@ -158,7 +158,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // BUILT-IN USER GUIDE IN-APP PANEL
+  // FIXED IN-APP USER GUIDE PANEL
   void _showUserGuide(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -178,7 +178,17 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 controller: scrollController,
                 children: [
                   const SizedBox(height: 12),
-                  Center(child: Container(width: 40, height: 5, decoration: BorderRadius.circular(10), color: Colors.grey.shade600)),
+                  // FIXED CONTAINER DECORATION LOGIC HERE:
+                  Center(
+                    child: Container(
+                      width: 40, 
+                      height: 5, 
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade600,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 20),
                   const Row(
                     children: [
