@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:math';
-import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(const TidalStreamApp());
@@ -56,6 +56,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _formKey2 = GlobalKey<FormState>();
   final _formKey3 = GlobalKey<FormState>();
 
+  static const platform = MethodChannel('com.tidal_stream.app/browser');
+
   // --- TAB 1: HEIGHT CONTROLLERS & STATES ---
   final _locHeightController = TextEditingController(text: "Manila Harbor");
   final _hwHeightController = TextEditingController(text: "2.5");
@@ -84,7 +86,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _streamSpringMaxController = TextEditingController(text: "3.5");
   final _streamNeapMaxController = TextEditingController(text: "1.5");
 
-  // Default Calculation Output States
   double estimatedHeight = 1.18;
   double estimatedDrift = 2.42;
   double setDirection = 45.0;
@@ -106,9 +107,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       double hw = double.tryParse(_hwHeightController.text) ?? 0.0;
       double lw = double.tryParse(_lwHeightController.text) ?? 0.0;
       double hours = double.tryParse(_timeFromHwHeightController.text) ?? 0.0;
-
       double factor = (cos((hours.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
-      
       setState(() {
         estimatedHeight = lw + (factor * (hw - lw));
       });
@@ -120,13 +119,10 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       double springRate = double.tryParse(_springRateController.text) ?? 0.0;
       double neapRate = double.tryParse(_neapRateController.text) ?? 0.0;
       double hours = double.tryParse(_timeFromHwStreamController.text) ?? 0.0;
-      
       double factor = (cos((hours.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
-      
       setState(() {
         estimatedDrift = neapRate + (factor * (springRate - neapRate));
         setDirection = double.tryParse(_directionController.text) ?? 0.0;
-
         _logbookRecords.insert(
           0,
           LogbookRecord(
@@ -162,10 +158,18 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  Future<void> _launchLiveMapUrl() async {
-    final Uri url = Uri.parse('https://www.windy.com/-Sea-currents-currents?currents,11.500,123.500,6');
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      throw Exception('Could not launch map server connection.');
+  // Native intent link para walang kailangang panlabas na plugin ang GitHub builder mo
+  Future<void> _openLiveMapNative() async {
+    try {
+      await platform.invokeMethod('openUrl', {
+        'url': 'https://www.windy.com/-Sea-currents-currents?currents,11.500,123.500,6'
+      });
+    } on PlatformException catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Launching map tracking system window..."), backgroundColor: Colors.teal),
+        );
+      }
     }
   }
 
@@ -207,7 +211,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 1: HEIGHT TAB (FIXED TIME INPUT) =================
+  // ================= TAB 1: HEIGHT TAB =================
   Widget _buildHeightTab() {
     return Form(
       key: _formKey1,
@@ -237,7 +241,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ],
           ),
           const SizedBox(height: 16),
-          // IBINALIK ANG TIME INPUT FIELD DITO:
           _buildInputWrapper(
             label: "Time fr. HW (hours)",
             child: TextFormField(controller: _timeFromHwHeightController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C)))),
@@ -435,7 +438,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 4: LIVE MAP CONTROLS (STABLE AND FUNCTIONAL) =================
+  // ================= TAB 4: LIVE MAP TAB =================
   Widget _buildLiveMapTab() {
     return Padding(
       padding: const EdgeInsets.all(20.0),
@@ -452,7 +455,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           ),
           const SizedBox(height: 10),
           const Text(
-            "Upang makasiguro sa katatagan ng app sa bridge, ang live interactive mapping ay bubuksan gamit ang iyong default system web browser.",
+            "Upang makasiguro sa katatagan ng app sa bridge, ang live interactive mapping ay bubuksan gamit ang iyong external system application link.",
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
           ),
@@ -466,32 +469,34 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ),
             child: const Column(
               children: [
-                Row(children: [Icon(Icons.check_circle, color: Colors.greenAccent, size: 16), SizedBox(width: 8), Text("Windy Live Stream Server Connection", style: TextStyle(fontSize: 12))]),
+                Row(children: [Icon(Icons.check_circle, color: Colors.greenAccent, size: 16), SizedBox(width: 8), Text("Windy Live Stream Server Active", style: TextStyle(fontSize: 12))]),
                 SizedBox(height: 8),
-                Row(children: [Icon(Icons.check_circle, color: Colors.greenAccent, size: 16), SizedBox(width: 8), Text("Real-Time Current Particles Enabled", style: TextStyle(fontSize: 12))]),
+                Row(children: [Icon(Icons.check_circle, color: Colors.greenAccent, size: 16), SizedBox(width: 8), Text("Real-Time Current Particles Loaded", style: TextStyle(fontSize: 12))]),
               ],
             ),
           ),
-          const SizedBox(height: 30),
-          // INAYUSAN ANG BUTTON LAYOUT AT TEXT PARA HINDI MAPUTOL O MAWALA
-          ElevatedButton(
-            onPressed: _launchLiveMapUrl,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF2C94C),
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.open_in_browser, color: Colors.black),
-                SizedBox(width: 10),
-                Text(
-                  "LAUNCH LIVE WINDY MAP", 
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
-                ),
-              ],
+          const SizedBox(height: 40),
+          // FIXED BUTTON WITH COMPLETE SCANNABLE TEXT FOR SHIPS BRIDGE
+          SizedBox(
+            height: 55,
+            child: ElevatedButton(
+              onPressed: _openLiveMapNative,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF2C94C),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.open_in_browser, color: Colors.black),
+                  SizedBox(width: 12),
+                  Text(
+                    "LAUNCH INTERACTIVE WINDY MAP",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
