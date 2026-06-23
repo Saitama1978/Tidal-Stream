@@ -39,13 +39,13 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _formKey2 = GlobalKey<FormState>();
   final _formKey3 = GlobalKey<FormState>();
 
-  // --- TAB 1 CONTROLLERS (HEIGHT) ---
+  // --- TAB 1: HEIGHT CONTROLLERS ---
   final _locHeightController = TextEditingController(text: "Manila Harbor");
   final _hwHeightController = TextEditingController(text: "2.5");
   final _lwHeightController = TextEditingController(text: "0.4");
   final _timeHeightController = TextEditingController(text: "3.5");
 
-  // --- TAB 2 CONTROLLERS (STANDARD GRAPH) ---
+  // --- TAB 2: STANDARD GRAPH CONTROLLERS ---
   final _locationController = TextEditingController(text: "Singapore Strait (Eastern)");
   final _latDegController = TextEditingController(text: "01");
   final _latMinController = TextEditingController(text: "16.80");
@@ -58,7 +58,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _timeFromHWController = TextEditingController(text: "3.5");
   final _directionController = TextEditingController(text: "075");
 
-  // --- TAB 3 CONTROLLERS (ADVANCED TABLES) ---
+  // --- TAB 3: ADVANCED TABLES CONTROLLERS ---
   final _tableStationController = TextEditingController(text: "Port Reference Table");
   final _tableHwHeightController = TextEditingController(text: "5.0");
   final _tableLwHeightController = TextEditingController(text: "1.0");
@@ -67,7 +67,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _streamSpringMaxController = TextEditingController(text: "3.5");
   final _streamNeapMaxController = TextEditingController(text: "1.5");
 
-  // Calculation Results
+  // Results
   double? estimatedHeight;
   double? estimatedDrift;
   double? setDirection;
@@ -76,9 +76,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
 
   void _calculateHeight() {
     if (_formKey1.currentState!.validate()) {
-      double hw = double.parse(_hwHeightController.text);
-      double lw = double.parse(_lwHeightController.text);
-      double duration = double.parse(_timeHeightController.text);
+      double hw = double.tryParse(_hwHeightController.text) ?? 0.0;
+      double lw = double.tryParse(_lwHeightController.text) ?? 0.0;
+      double duration = double.tryParse(_timeHeightController.text) ?? 0.0;
       double factor = (cos((duration.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
       setState(() {
         estimatedHeight = lw + (factor * (hw - lw));
@@ -88,9 +88,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
 
   void _calculateStandardDrift() {
     if (_formKey2.currentState!.validate()) {
-      double hw = double.parse(_hwRateController.text);
-      double lw = double.parse(_lwRateController.text);
-      double duration = double.parse(_timeFromHWController.text);
+      double hw = double.tryParse(_hwRateController.text) ?? 0.0;
+      double lw = double.tryParse(_lwRateController.text) ?? 0.0;
+      double duration = double.tryParse(_timeFromHWController.text) ?? 0.0;
       double factor = (cos((duration.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
       setState(() {
         estimatedDrift = lw + (factor * (hw - lw));
@@ -101,12 +101,12 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
 
   void _calculateAdvancedStream() {
     if (_formKey3.currentState!.validate()) {
-      double hwHeight = double.parse(_tableHwHeightController.text);
-      double lwHeight = double.parse(_tableLwHeightController.text);
-      double msr = double.parse(_msrController.text);
-      double mnp = double.parse(_mnpController.text);
-      double springMaxRate = double.parse(_streamSpringMaxController.text);
-      double neapMaxRate = double.parse(_streamNeapMaxController.text);
+      double hwHeight = double.tryParse(_tableHwHeightController.text) ?? 0.0;
+      double lwHeight = double.tryParse(_tableLwHeightController.text) ?? 0.0;
+      double msr = double.tryParse(_msrController.text) ?? 0.0;
+      double mnp = double.tryParse(_mnpController.text) ?? 0.0;
+      double springMaxRate = double.tryParse(_streamSpringMaxController.text) ?? 0.0;
+      double neapMaxRate = double.tryParse(_streamNeapMaxController.text) ?? 0.0;
 
       double currentRange = (hwHeight - lwHeight).abs();
       double rangeFactor = 0.5;
@@ -124,7 +124,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
-      initialIndex: 1, // Default sa Tab 2 para bubukas agad sa Standard Graph mo
+      initialIndex: 1,
       child: Scaffold(
         appBar: AppBar(
           title: const Text(
@@ -248,7 +248,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 2: STANDARD GRAPH (PRESERVED MATCHING 1000370543) =================
+  // ================= TAB 2: STANDARD GRAPH =================
   Widget _buildStandardGraphTab() {
     return Form(
       key: _formKey2,
@@ -372,7 +372,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.black24,
+              color: Colors.black26,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF2E4E58)),
             ),
@@ -412,7 +412,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 3: ADVANCED TABLES (MATCHING 1000370555) =================
+  // ================= TAB 3: ADVANCED TABLES =================
   Widget _buildAdvancedTablesTab() {
     return Form(
       key: _formKey3,
@@ -507,7 +507,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               children: [
                 Text(
                   "Spring Factor: ${advancedSpringFactor?.toStringAsFixed(0) ?? "92"}%",
-                  style: const TextStyle(fontSize: 12, color: Colors.alluvial, color: Colors.yellowAccent, fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontSize: 12, color: Colors.yellowAccent, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 6),
                 const Text("CALCULATED CURRENT SPEED", style: TextStyle(fontSize: 11, color: Colors.grey)),
@@ -524,7 +524,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // Helper Custom Containers matching screen borders
   Widget _buildInputWrapper({required String label, required Widget child}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -556,7 +555,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 }
 
-// Sine wave graph matching exact visual interpolation curve
 class TidalSinusoidalPainter extends CustomPainter {
   final double time;
   TidalSinusoidalPainter(this.time);
@@ -575,7 +573,6 @@ class TidalSinusoidalPainter extends CustomPainter {
     final path = Path();
     for (double x = 0; x <= size.width; x++) {
       double normalizedX = x / size.width;
-      // Generates a proper smooth tide curve trajectory
       double y = (cos(normalizedX * pi) + 1) / 2 * (size.height - 20) + 10;
       if (x == 0) {
         path.moveTo(x, y);
@@ -585,7 +582,6 @@ class TidalSinusoidalPainter extends CustomPainter {
     }
     canvas.drawPath(path, paintCurve);
 
-    // Precise coordinates for the dynamic indicator red dot
     double ratio = (time.clamp(0.0, 6.0) / 6.0);
     double dotX = ratio * size.width;
     double dotY = (cos(ratio * pi) + 1) / 2 * (size.height - 20) + 10;
