@@ -72,14 +72,13 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _longDegController = TextEditingController(text: "124");
   final _longMinController = TextEditingController(text: "28.47");
   String _longDir = "E";
-  final _hwRateController = TextEditingController(text: "4.5");
-  final _lwRateController = TextEditingController(text: "1.2");
+  final _springRateController = TextEditingController(text: "4.5"); // Dati ay _hwRateController
+  final _neapRateController = TextEditingController(text: "1.2");   // Dati ay _lwRateController
   final _directionController = TextEditingController(text: "045");
 
-  // Bagong Time States para sa Standard Graph Tab
   TimeOfDay? _hwTimeTab2 = const TimeOfDay(hour: 10, minute: 0);
   TimeOfDay? _targetTimeTab2 = const TimeOfDay(hour: 13, minute: 30);
-  double _calculatedTimeFromHWTab2 = 3.5; // Gagamitin para sa live graph rendering
+  double _calculatedTimeFromHWTab2 = 3.5;
 
   // --- TAB 3: ADVANCED TABLES CONTROLLERS ---
   final _tableStationController = TextEditingController(text: "Port Reference Table");
@@ -97,7 +96,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   double advancedCalculatedRate = 1.24;
   double advancedSpringFactor = 92.0;
 
-  // Bridge Logbook State Storage
   final List<LogbookRecord> _logbookRecords = [
     LogbookRecord(
       id: "1",
@@ -108,7 +106,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     ),
   ];
 
-  // Universal Helper para sa pagpili ng oras sa lahat ng tabs
   Future<void> _selectTime(BuildContext context, String tabAndType) async {
     TimeOfDay initialTime = const TimeOfDay(hour: 12, minute: 0);
     
@@ -133,7 +130,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // Helper para gawing kabuuang minuto ang TimeOfDay
   int _timeToMinutes(TimeOfDay time) => (time.hour * 60) + time.minute;
 
   void _calculateHeight() {
@@ -159,24 +155,21 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
 
   void _calculateStandardDriftAndRecord() {
     if (_formKey2.currentState!.validate() && _hwTimeTab2 != null && _targetTimeTab2 != null) {
-      double hwRate = double.tryParse(_hwRateController.text) ?? 0.0;
-      double lwRate = double.tryParse(_lwRateController.text) ?? 0.0;
+      double springRate = double.tryParse(_springRateController.text) ?? 0.0;
+      double neapRate = double.tryParse(_neapRateController.text) ?? 0.0;
       
       int hwMin = _timeToMinutes(_hwTimeTab2!);
       int targetMin = _timeToMinutes(_targetTimeTab2!);
 
-      // Awtomatikong kukuha ng agwat ng oras (oras mula HW)
       int diffInMinutes = (targetMin - hwMin).abs();
       double durationInHours = diffInMinutes / 60.0;
 
-      // I-save ang calculated duration sa state para magamit ng Live Graph Painter
       _calculatedTimeFromHWTab2 = durationInHours;
 
-      // Limitahan sa standard 6 hours para sa sinusoidal interpolation plot
       double factor = (cos((durationInHours.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
       
       setState(() {
-        estimatedDrift = lwRate + (factor * (hwRate - lwRate));
+        estimatedDrift = neapRate + (factor * (springRate - neapRate));
         setDirection = double.tryParse(_directionController.text) ?? 0.0;
 
         _logbookRecords.insert(
@@ -234,13 +227,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 physics: const ClampingScrollPhysics(),
                 children: [
                   const SizedBox(height: 12),
-                  Center(
-                    child: Container(
-                      width: 40, 
-                      height: 5, 
-                      decoration: BoxDecoration(color: Colors.grey.shade600, borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
+                  Center(child: Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade600, borderRadius: BorderRadius.circular(10)))),
                   const SizedBox(height: 20),
                   const Row(
                     children: [
@@ -261,7 +248,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                     title: "2. STANDARD GRAPH TAB (Drift & Set)",
                     body: "Pangunahing visual guide para sa pagkalkula ng bilis (Drift) at direksyon (Set) ng agos.\n\n"
                           "• Ipasok ang Lat/Long at Cardinal directions (N/S/E/W).\n"
-                          "• I-encode ang HW at LW Rates mula sa Tidal Stream Atlas.\n"
+                          "• I-encode ang Max Spring at Max Neap Rates mula sa Tidal Stream Atlas / Chart Table.\n"
                           "• Ipasok ang HW Time at Target (ETA) Time upang awtomatikong makuha ang agwat ng oras.\n"
                           "• I-click ang COMPUTE & RECORD upang mag-save sa Bridge Logbook.",
                   ),
@@ -444,7 +431,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 2: STANDARD GRAPH (UPGRADED WITH TIME SELECTORS) =================
+  // ================= TAB 2: STANDARD GRAPH (UPDATED LABELS) =================
   Widget _buildStandardGraphTab() {
     return Form(
       key: _formKey2,
@@ -522,21 +509,20 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             children: [
               Expanded(
                 child: _buildInputWrapper(
-                  label: "HW Rate (kts)",
-                  child: TextFormField(controller: _hwRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.trending_up, color: Color(0xFFF2C94C), size: 14))),
+                  label: "Max Spring Rate (kts) [Mula sa Atlas/Chart]", // PINALITAN ANG LABEL DITO CHIEF
+                  child: TextFormField(controller: _springRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.bolt, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildInputWrapper(
-                  label: "LW Rate (kts)",
-                  child: TextFormField(controller: _lwRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.trending_down, color: Color(0xFFF2C94C), size: 14))),
+                  label: "Max Neap Rate (kts) [Mula sa Atlas/Chart]",  // PINALITAN ANG LABEL DITO CHIEF
+                  child: TextFormField(controller: _neapRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.waves_outlined, color: Color(0xFFF2C94C), size: 14))),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          // Heto na ang mga pinalit nating Oras sa halip na manual decimal field, Chief!
           Row(
             children: [
               Expanded(
@@ -809,7 +795,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // Wrapper Widget para sa Custom Time Picker Selectors
   Widget _buildTimeSelectorWrapper({required String label, required TimeOfDay? time, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
