@@ -171,7 +171,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Fixed Calculate Button
+                // Calculate Button
                 ElevatedButton(
                   onPressed: _calculateTidalStream,
                   style: ElevatedButton.styleFrom(
@@ -220,7 +220,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
                   const SizedBox(height: 8),
                   Container(
-                    constraints: const BoxConstraints(maxHeight: 180), // Fixed BoxConstraints syntax
+                    constraints: const BoxConstraints(maxHeight: 180),
                     decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
                     child: ListView.builder(
                       shrinkWrap: true,
@@ -255,7 +255,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFFF2C94C)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const Color(0xFFF2C94C)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFF2C94C))), // Inayos na BorderSide dito
         filled: true,
         fillColor: Colors.black12,
       ),
@@ -272,7 +272,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   }
 }
 
-// Fixed Custom Painter
+// Custom Painter
 class TidalCurvePainter extends CustomPainter {
   final double timeFromHW;
   TidalCurvePainter(this.timeFromHW);
@@ -282,7 +282,7 @@ class TidalCurvePainter extends CustomPainter {
     final paintCurve = Paint()
       ..color = Colors.cyanAccent.withOpacity(0.5)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3; // Fixed standard parameter
+      ..strokeWidth = 3;
 
     final paintDot = Paint()
       ..color = Colors.redAccent
