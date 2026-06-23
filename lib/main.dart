@@ -106,7 +106,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       double lw = double.tryParse(_lwHeightController.text) ?? 0.0;
       double hours = double.tryParse(_timeFromHwHeightController.text) ?? 0.0;
 
-      // Sinusoidal calculation base hours (6-hour standard window)
       double factor = (cos((hours.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
       
       setState(() {
@@ -164,9 +163,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // SIGURADONG SAKTO SA 4 ANG LENGTH NG CONTROLLER
     return DefaultTabController(
-      length: 4,
-      initialIndex: 0,
+      length: 4, 
       child: Scaffold(
         appBar: AppBar(
           title: const Text('TIDAL STREAM WORLDWIDE', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 1.2)),
@@ -182,7 +181,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               Tab(text: "HEIGHT"), 
               Tab(text: "STANDARD GRAPH"), 
               Tab(text: "ADVANCED TABLES"),
-              Tab(text: "LIVE MAP")
+              Tab(text: "LIVE MAP"), // LITERAL NA APAT NA TABS DITO
             ],
           ),
         ),
@@ -428,7 +427,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 4: LIVE MAP CONTROLS (STABLE NATIVE DISPATCH) =================
+  // ================= TAB 4: LIVE MAP CONTROLS =================
   Widget _buildLiveMapTab() {
     return Padding(
       padding: const EdgeInsets.all(20.0),
@@ -460,7 +459,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             child: const Column(
               children: [
                 Row(children: [Icon(Icons.check_circle, color: Colors.greenAccent, size: 16), SizedBox(width: 8), Text("Windy Live Stream Server", style: TextStyle(fontSize: 12))]),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Row(children: [Icon(Icons.check_circle, color: Colors.greenAccent, size: 16), SizedBox(width: 8), Text("Real-Time Current Particles Active", style: TextStyle(fontSize: 12))]),
               ],
             ),
