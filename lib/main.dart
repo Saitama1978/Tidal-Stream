@@ -90,6 +90,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   double advancedCalculatedRate = 1.24;
   double advancedSpringFactor = 92.0;
 
+  // Dito mase-save ang mga records kapag pinindot ang compute button
   final List<LogbookRecord> _logbookRecords = [
     LogbookRecord(
       id: "1",
@@ -123,6 +124,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         estimatedDrift = lw + (factor * (hw - lw));
         setDirection = double.tryParse(_directionController.text) ?? 0.0;
 
+        // Awtomatikong magpapasok ng bagong record sa listahan sa taas/unahan
         _logbookRecords.insert(
           0,
           LogbookRecord(
@@ -158,7 +160,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // FIXED IN-APP USER GUIDE PANEL
+  // FIXED DRAG DOWN DISMISSAL SHEET
   void _showUserGuide(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -174,11 +176,12 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           builder: (context, scrollController) {
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              // IMPORTANTE: Ipinasa ang scrollController para gumana ang drag down feature!
               child: ListView(
                 controller: scrollController,
+                physics: const ClampingScrollPhysics(),
                 children: [
                   const SizedBox(height: 12),
-                  // FIXED CONTAINER DECORATION LOGIC HERE:
                   Center(
                     child: Container(
                       width: 40, 
@@ -611,6 +614,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ),
           ),
           const SizedBox(height: 20),
+          // FIXED LOGBOOK VIEW WITH DELETE BUTTON
           const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5)),
           const SizedBox(height: 8),
           _logbookRecords.isEmpty
@@ -620,7 +624,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 )
               : ListView.builder(
                   shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+                  physics: const NeverScrollableScrollPhysics(), // Naka-embed sa main scroll ng body
                   itemCount: _logbookRecords.length,
                   itemBuilder: (context, index) {
                     final item = _logbookRecords[index];
@@ -648,6 +652,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                           ),
                           Text("${item.drift.toStringAsFixed(2)} kts", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.greenAccent)),
                           const SizedBox(width: 12),
+                          // ITO ANG DELETE BUTTON NA HININGI MO, CHIEF!
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                             onPressed: () {
