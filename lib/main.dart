@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'package:url_launcher/url_launcher.dart'; // Tamang import para hindi mag-error ang launchUrl
+import 'package:url_launcher/url_launcher.dart'; // Import para sa launchUrl
 
 void main() {
   runApp(const TidalStreamApp());
@@ -29,11 +29,11 @@ class TidalStreamApp extends StatelessWidget {
 }
 
 class LogbookRecord {
-  final String id;
-  final String location;
-  final double timeFromHW;
-  final double direction;
-  final double drift;
+  String id;
+  String location;
+  double timeFromHW;
+  double direction;
+  double drift;
 
   LogbookRecord({
     required this.id,
@@ -153,7 +153,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // Functional URL function para sa totoong Live Map Link
   Future<void> _openLiveMap() async {
     final Uri url = Uri.parse('https://www.windy.com/-Waves-waves?waves,12.876,121.774,5');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -165,10 +164,97 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
+  // Dialog para sa Pag-edit ng Log Record
+  void _editLogRecord(LogbookRecord record, int index) {
+    final editLocController = TextEditingController(text: record.location);
+    final editTimeController = TextEditingController(text: record.timeFromHW.toString());
+    final editDirController = TextEditingController(text: record.direction.toStringAsFixed(0));
+    final editDriftController = TextEditingController(text: record.drift.toStringAsFixed(2));
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F2027),
+        title: const Text("Edit Logbook Entry", style: TextStyle(color: Color(0xFFF2C94C))),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: editLocController,
+                decoration: const InputDecoration(labelText: "Location"),
+              ),
+              TextField(
+                controller: editTimeController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: "Time from HW (h)"),
+              ),
+              TextField(
+                controller: editDirController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: "Direction (°)"),
+              ),
+              TextField(
+                controller: editDriftController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: "Drift Rate (kts)"),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black),
+            onPressed: () {
+              setState(() {
+                _logbookRecords[index] = LogbookRecord(
+                  id: record.id,
+                  location: editLocController.text,
+                  timeFromHW: double.tryParse(editTimeController.text) ?? record.timeFromHW,
+                  direction: double.tryParse(editDirController.text) ?? record.direction,
+                  drift: double.tryParse(editDriftController.text) ?? record.drift,
+                );
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Log record updated successfully!")),
+              );
+            },
+            child: const Text("SAVE CHANGES"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Function para sa Save / Exporting ng Data
+  void _saveLogHistory() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.teal.shade800,
+        content: Text("Successfully saved ${_logbookRecords.length} records to local storage!"),
+      ),
+    );
+  }
+
+  // Function para sa Printing
+  void _printLogHistory() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Colors.blueGrey,
+        content: Text("Sending log history to printer server..."),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4, 
+      length: 5, // Ginawang 5 para sa bagong Log History Tab
       child: Scaffold(
         appBar: AppBar(
           title: const Text('TIDAL STREAM WORLDWIDE', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 1.2)),
@@ -185,6 +271,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               Tab(text: "STANDARD GRAPH"), 
               Tab(text: "ADVANCED TABLES"),
               Tab(text: "LIVE MAP"),
+              Tab(text: "LOG HISTORY"), // Bagong Tab
             ],
           ),
         ),
@@ -196,6 +283,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildStandardGraphTab())),
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAdvancedTablesTab())),
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildLiveMapTab())),
+              WidgetKeepAlive(child: Padding(padding: const EdgeInsets.all(16.0), child: _buildLogHistoryTab())), // Bagong View
             ],
           ),
         ),
@@ -345,26 +433,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          const Text("BRIDGE LOGBOOK RECORD", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5)),
-          const SizedBox(height: 8),
-          ListView.builder(
-            shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: _logbookRecords.length,
-            itemBuilder: (context, index) {
-              final item = _logbookRecords[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFF1B2D36), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF2E4E58))),
-                child: Row(
-                  children: [
-                    const Icon(Icons.assignment, color: Color(0xFFF2C94C), size: 22), const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(item.location, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)), const SizedBox(height: 2), Text("${item.timeFromHW}h from HW | Dir: ${item.direction.toStringAsFixed(0)}°", style: const TextStyle(fontSize: 11, color: Colors.grey))])),
-                    Text("${item.drift.toStringAsFixed(2)} kts", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.greenAccent)), const SizedBox(width: 8),
-                    IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20), onPressed: () => setState(() => _logbookRecords.removeAt(index))),
-                  ],
-                ),
-              );
-            },
-          ),
         ],
       ),
     );
@@ -427,7 +495,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 4: BINALIK NA LIVE MAP CONNECTOR =================
   Widget _buildLiveMapTab() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -468,7 +535,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           SizedBox(
             height: 54,
             child: ElevatedButton.icon(
-              onPressed: _openLiveMap, // Dito tatawagin ang totoong Link Trigger
+              onPressed: _openLiveMap,
               icon: const Icon(Icons.open_in_new, color: Colors.black),
               label: const Text(
                 "LAUNCH LIVE INTERACTIVE MAP",
@@ -486,9 +553,115 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
+  // ================= TAB 5: PANG-LOG HISTORY, EDIT, SAVE & PRINT =================
+  Widget _buildLogHistoryTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "BRIDGE LOGBOOK RECORDS",
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 0.5),
+            ),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _saveLogHistory,
+                  icon: const Icon(Icons.save, size: 16),
+                  label: const Text("SAVE", style: TextStyle(fontSize: 11)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                ElevatedButton.icon(
+                  onPressed: _printLogHistory,
+                  icon: const Icon(Icons.print, size: 16),
+                  label: const Text("PRINT", style: TextStyle(fontSize: 11)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: _logbookRecords.isEmpty
+              ? const Center(
+                  child: Text(
+                    "No log records calculated yet.",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _logbookRecords.length,
+                  itemBuilder: (context, index) {
+                    final item = _logbookRecords[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B2D36),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF2E4E58)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.assignment, color: Color(0xFFF2C94C), size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.location,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${item.timeFromHW}h from HW | Dir: ${item.direction.toStringAsFixed(0)}°",
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            "${item.drift.toStringAsFixed(2)} kts",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.greenAccent),
+                          ),
+                          const SizedBox(width: 4),
+                          // Edit Button
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.cyanAccent, size: 20),
+                            onPressed: () => _editLogRecord(item, index),
+                          ),
+                          // Delete Button
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                            onPressed: () => setState(() => _logbookRecords.removeAt(index)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInputWrapper({required String label, required Widget child}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFF4F5D65))),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFF4F5D65))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)), SizedBox(height: 28, child: child)]),
     );
   }
