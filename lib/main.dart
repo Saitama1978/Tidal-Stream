@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'package:flutter/services.dart'; // Gagamitin para sa Clipboard (Zero Dependency)
+import 'package:flutter/services.dart'; // Gagamitin para sa Clipboard (Zero Dependency para iwas build failure)
 
 void main() {
   runApp(const TidalStreamApp());
@@ -56,12 +56,15 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _formKey2 = GlobalKey<FormState>();
   final _formKey3 = GlobalKey<FormState>();
 
+  // HEIGHT Tab Controllers
   final _locHeightController = TextEditingController(text: "Manila Harbor");
   final _hwHeightController = TextEditingController(text: "2.5");
   final _lwHeightController = TextEditingController(text: "0.4");
-  final _htTimeController = TextEditingController(text: "08:30"); // Oras ng High Tide
-  final _timeFromHwHeightController = TextEditingController(text: "3.5");
+  final _hwTimeController = TextEditingController(text: "08:30"); // Oras ng High Tide
+  final _lwTimeController = TextEditingController(text: "14:30"); // Oras ng Low Tide
+  final _depTimeController = TextEditingController(text: "12:00"); // Target / Departure Time
 
+  // STANDARD GRAPH Tab Controllers
   final _locationController = TextEditingController(text: "San Bernardino Strait");
   final _latDegController = TextEditingController(text: "12");
   final _latMinController = TextEditingController(text: "51.25");
@@ -71,9 +74,11 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   String _longDir = "E";
   final _springRateController = TextEditingController(text: "4.5");
   final _neapRateController = TextEditingController(text: "1.2");
-  final _timeFromHwStreamController = TextEditingController(text: "3.5");
+  final _streamHwTimeController = TextEditingController(text: "08:30"); // Bagong Oras ng HW para sa Stream
+  final _streamTargetTimeController = TextEditingController(text: "12:00"); // Bagong Target/Departure Time
   final _directionController = TextEditingController(text: "045");
 
+  // ADVANCED TABLES Tab Controllers
   final _tableStationController = TextEditingController(text: "Port Reference Table");
   final _tableHwHeightController = TextEditingController(text: "5.0");
   final _tableLwHeightController = TextEditingController(text: "1.0");
@@ -82,8 +87,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _streamSpringMaxController = TextEditingController(text: "3.5");
   final _streamNeapMaxController = TextEditingController(text: "1.5");
 
+  // State calculation variables
   double estimatedHeight = 1.18;
-  String targetTimeResult = "12:00"; // Resultang target na oras ng kalkulasyon
+  String targetTimeResult = "12:00"; 
   double estimatedDrift = 2.42;
   double setDirection = 45.0;
   double advancedCalculatedRate = 1.24;
@@ -99,63 +105,150 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     ),
   ];
 
-  void _calculateHeight() {
-    if (_formKey1.currentState!.validate()) {
-      double hw = double.tryParse(_hwHeightController.text) ?? 0.0;
-      double lw = double.tryParse(_lwHeightController.text) ?? 0.0;
-      double hours = double.tryParse(_timeFromHwHeightController.text) ?? 0.0;
-      double factor = (cos((hours.clamp(-6.0, 6.0).abs() / 6.0) * pi) + 1) / 2;
-      
+  @override
+  void initState() {
+    super.initState();
+    
+    // Auto-calculation listener para sa Height Tab
+    _hwHeightController.addListener(_autoCalculateHeight);
+    _lwHeightController.addListener(_autoCalculateHeight);
+    _hwTimeController.addListener(_autoCalculateHeight);
+    _lwTimeController.addListener(_autoCalculateHeight);
+    _depTimeController.addListener(_autoCalculateHeight);
+
+    // Auto-calculation listener para sa Standard Graph Tab
+    _streamHwTimeController.addListener(_autoCalculateStream);
+    _streamTargetTimeController.addListener(_autoCalculateStream);
+    _springRateController.addListener(_autoCalculateStream);
+    _neapRateController.addListener(_autoCalculateStream);
+    _directionController.addListener(_autoCalculateStream);
+  }
+
+  @override
+  void dispose() {
+    _hwHeightController.removeListener(_autoCalculateHeight);
+    _lwHeightController.removeListener(_autoCalculateHeight);
+    _hwTimeController.removeListener(_autoCalculateHeight);
+    _lwTimeController.removeListener(_autoCalculateHeight);
+    _depTimeController.removeListener(_autoCalculateHeight);
+
+    _streamHwTimeController.removeListener(_autoCalculateStream);
+    _streamTargetTimeController.removeListener(_autoCalculateStream);
+    _springRateController.removeListener(_autoCalculateStream);
+    _neapRateController.removeListener(_autoCalculateStream);
+    _directionController.removeListener(_autoCalculateStream);
+
+    _streamHwTimeController.dispose();
+    _streamTargetTimeController.dispose();
+    super.dispose();
+  }
+
+  // Helper para i-parse ang "HH:MM" format sa numeric decimal hours
+  double? _parseTimeToHours(String timeStr) {
+    try {
+      List<String> parts = timeStr.trim().split(':');
+      if (parts.length != 2) return null;
+      int hour = int.parse(parts[0]);
+      int min = int.parse(parts[1]);
+      if (hour < 0 || hour > 23 || min < 0 || min > 59) return null;
+      return hour + (min / 60.0);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Auto-calculation gamit ang sinusoidal tidal interpolation para sa HEIGHT Tab
+  void _autoCalculateHeight() {
+    double? hw = double.tryParse(_hwHeightController.text);
+    double? lw = double.tryParse(_lwHeightController.text);
+    double? tHW = _parseTimeToHours(_hwTimeController.text);
+    double? tLW = _parseTimeToHours(_lwTimeController.text);
+    double? tDep = _parseTimeToHours(_depTimeController.text);
+
+    if (hw != null && lw != null && tHW != null && tLW != null && tDep != null) {
+      double dtTide = tLW - tHW;
+      if (dtTide > 12) dtTide -= 24;
+      if (dtTide < -12) dtTide += 24;
+
+      double dtTarget = tDep - tHW;
+      if (dtTarget > 12) dtTarget -= 24;
+      if (dtTarget < -12) dtTarget += 24;
+
+      double fraction;
+      if (dtTide.abs() < 0.01) {
+        fraction = 0.5;
+      } else {
+        fraction = (dtTarget / dtTide).clamp(0.0, 1.0);
+      }
+
+      double factor = (cos(fraction * pi) + 1) / 2;
+
       setState(() {
         estimatedHeight = lw + (factor * (hw - lw));
-
-        // Kalkulahin ang target calculation time
-        String htText = _htTimeController.text.trim();
-        List<String> parts = htText.split(':');
-        int htHour = 8;
-        int htMin = 30;
-        if (parts.length == 2) {
-          htHour = int.tryParse(parts[0]) ?? 8;
-          htMin = int.tryParse(parts[1]) ?? 30;
-        }
-
-        double totalHours = (htHour + (htMin / 60.0) + hours) % 24;
-        if (totalHours < 0) totalHours += 24;
-
-        int targetHour = totalHours.floor();
-        int targetMin = ((totalHours - targetHour) * 60).round();
-        if (targetMin == 60) {
-          targetHour = (targetHour + 1) % 24;
-          targetMin = 0;
-        }
-
-        String hourStr = targetHour.toString().padLeft(2, '0');
-        String minStr = targetMin.toString().padLeft(2, '0');
-        targetTimeResult = "$hourStr:$minStr";
+        targetTimeResult = _depTimeController.text.trim();
       });
     }
   }
 
-  void _calculateStandardDriftAndRecord() {
-    if (_formKey2.currentState!.validate()) {
-      double springRate = double.tryParse(_springRateController.text) ?? 0.0;
-      double neapRate = double.tryParse(_neapRateController.text) ?? 0.0;
-      double hours = double.tryParse(_timeFromHwStreamController.text) ?? 0.0;
-      double factor = (cos((hours.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
+  // Auto-calculation para sa STANDARD GRAPH Tab gamit ang clock times
+  void _autoCalculateStream() {
+    double? tHW = _parseTimeToHours(_streamHwTimeController.text);
+    double? tTarget = _parseTimeToHours(_streamTargetTimeController.text);
+    double? springRate = double.tryParse(_springRateController.text);
+    double? neapRate = double.tryParse(_neapRateController.text);
+
+    if (tHW != null && tTarget != null && springRate != null && neapRate != null) {
+      double diff = tTarget - tHW;
+      if (diff > 12) diff -= 24;
+      if (diff < -12) diff += 24;
+
+      double absDiff = diff.abs();
+      double factor = (cos((absDiff.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
+
       setState(() {
         estimatedDrift = neapRate + (factor * (springRate - neapRate));
         setDirection = double.tryParse(_directionController.text) ?? 0.0;
+      });
+    }
+  }
+
+  // Kukunin ang kasalukuyang calculated interval para sa Standard Graph
+  double get _computedStreamHoursDouble {
+    double? tHW = _parseTimeToHours(_streamHwTimeController.text);
+    double? tTarget = _parseTimeToHours(_streamTargetTimeController.text);
+    if (tHW != null && tTarget != null) {
+      double diff = tTarget - tHW;
+      if (diff > 12) diff -= 24;
+      if (diff < -12) diff += 24;
+      return diff.abs();
+    }
+    return 3.5;
+  }
+
+  String get _computedStreamIntervalString {
+    double hours = _computedStreamHoursDouble;
+    return "${hours.toStringAsFixed(2)} hrs";
+  }
+
+  // Pagre-record ng nakalkulang drift sa Logbook history
+  void _calculateStandardDriftAndRecord() {
+    if (_formKey2.currentState!.validate()) {
+      double hours = _computedStreamHoursDouble;
+      setState(() {
         _logbookRecords.insert(
           0,
           LogbookRecord(
             id: DateTime.now().toString(),
             location: _locationController.text,
-            timeFromHW: hours,
+            timeFromHW: double.parse(hours.toStringAsFixed(2)),
             direction: setDirection,
             drift: estimatedDrift,
           ),
         );
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Bridge logbook entry recorded successfully!")),
+      );
     }
   }
 
@@ -247,7 +340,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // Function para sa Save / Exporting ng Data
+  // Action Buttons para sa Logs (Save at Print)
   void _saveLogHistory() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -257,7 +350,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // Function para sa Printing
   void _printLogHistory() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -270,7 +362,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4, // 4 tabs na lang dahil tinanggal ang Live Map
+      length: 4, // HEIGHT, STANDARD GRAPH, ADVANCED TABLES, LOG HISTORY
       child: Scaffold(
         appBar: AppBar(
           title: const Text('TIDAL STREAM WORLDWIDE', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 1.2)),
@@ -305,6 +397,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
+  // ================= TAB 1: TIDAL HEIGHT INTERPOLATION =================
   Widget _buildHeightTab() {
     return Form(
       key: _formKey1,
@@ -316,6 +409,10 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             child: TextFormField(controller: _locHeightController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.map, color: Color(0xFFF2C94C)))),
           ),
           const SizedBox(height: 16),
+          
+          // HIGH TIDE BLOCK
+          const Text("HIGH TIDE SPECIFICATION (HW)", style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
@@ -327,28 +424,15 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildInputWrapper(
-                  label: "LW Height (m)",
-                  child: TextFormField(controller: _lwHeightController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.trending_down, color: Color(0xFFF2C94C)))),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Bagon Row para sa Oras ng High Tide at Oras mula High Tide (Time from HW)
-          Row(
-            children: [
-              Expanded(
-                child: _buildInputWrapper(
-                  label: "HT Time (HH:MM)",
+                  label: "HW Time (HH:MM)",
                   child: Row(
                     children: [
                       Expanded(
-                        child: TextFormField(
-                          controller: _htTimeController,
-                          decoration: const InputDecoration(border: InputBorder.none, hintText: "08:30"),
-                        ),
+                        child: TextFormField(controller: _hwTimeController, decoration: const InputDecoration(border: InputBorder.none)),
                       ),
                       IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         icon: const Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 18),
                         onPressed: () async {
                           TimeOfDay? picked = await showTimePicker(
@@ -358,7 +442,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                           if (picked != null) {
                             final hourStr = picked.hour.toString().padLeft(2, '0');
                             final minStr = picked.minute.toString().padLeft(2, '0');
-                            _htTimeController.text = "$hourStr:$minStr";
+                            _hwTimeController.text = "$hourStr:$minStr";
                           }
                         },
                       ),
@@ -366,32 +450,91 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // LOW TIDE BLOCK
+          const Text("LOW TIDE SPECIFICATION (LW)", style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: _buildInputWrapper(
+                  label: "LW Height (m)",
+                  child: TextFormField(controller: _lwHeightController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.trending_down, color: Color(0xFFF2C94C)))),
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildInputWrapper(
-                  label: "Time fr. HW (hours)",
-                  child: TextFormField(
-                    controller: _timeFromHwHeightController, 
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true), 
-                    decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.hourglass_empty, color: Color(0xFFF2C94C), size: 16)),
+                  label: "LW Time (HH:MM)",
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(controller: _lwTimeController, decoration: const InputDecoration(border: InputBorder.none)),
+                      ),
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 18),
+                        onPressed: () async {
+                          TimeOfDay? picked = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 14, minute: 30),
+                          );
+                          if (picked != null) {
+                            final hourStr = picked.hour.toString().padLeft(2, '0');
+                            final minStr = picked.minute.toString().padLeft(2, '0');
+                            _lwTimeController.text = "$hourStr:$minStr";
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _calculateHeight,
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            child: const Text("COMPUTE HEIGHT", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 16),
+
+          // DEPARTURE SPECIFICATION
+          const Text("DEPARTURE SPECIFICATION", style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 6),
+          _buildInputWrapper(
+            label: "Departure Time (HH:MM)",
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(controller: _depTimeController, decoration: const InputDecoration(border: InputBorder.none)),
+                ),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 20),
+                  onPressed: () async {
+                    TimeOfDay? picked = await showTimePicker(
+                      context: context,
+                      initialTime: const TimeOfDay(hour: 12, minute: 0),
+                    );
+                    if (picked != null) {
+                      final hourStr = picked.hour.toString().padLeft(2, '0');
+                      final minStr = picked.minute.toString().padLeft(2, '0');
+                      _depTimeController.text = "$hourStr:$minStr";
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
+          
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(color: const Color(0xFF0F2027).withOpacity(0.5), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFF2C94C).withOpacity(0.4))),
             child: Column(
               children: [
-                Text("ESTIMATED TIDAL HEIGHT AT $targetTimeResult", style: const TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1, fontWeight: FontWeight.w600)),
+                Text("ESTIMATED TIDAL HEIGHT AT $targetTimeResult (AUTO INTERPOLATED)", style: const TextStyle(fontSize: 11, color: Colors.grey, letterSpacing: 1, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Text("${estimatedHeight.toStringAsFixed(2)} m", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
               ],
@@ -402,6 +545,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
+  // ================= TAB 2: STREAM STANDARD GRAPH (TIME-BASED AUTO INTERPOLATION) =================
   Widget _buildStandardGraphTab() {
     return Form(
       key: _formKey2,
@@ -447,36 +591,124 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ],
           ),
           const SizedBox(height: 12),
+          
+          // SPRING / NEAP SPEED SPECS
           Row(
             children: [
-              Expanded(child: _buildInputWrapper(label: "HW Rate (kts)", child: TextFormField(controller: _springRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.bolt, color: Color(0xFFF2C94C), size: 14))))),
+              Expanded(child: _buildInputWrapper(label: "HW Rate / Spring (kts)", child: TextFormField(controller: _springRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.bolt, color: Color(0xFFF2C94C), size: 14))))),
               const SizedBox(width: 12),
-              Expanded(child: _buildInputWrapper(label: "LW Rate (kts)", child: TextFormField(controller: _neapRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.waves_outlined, color: Color(0xFFF2C94C), size: 14))))),
+              Expanded(child: _buildInputWrapper(label: "LW Rate / Neap (kts)", child: TextFormField(controller: _neapRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.waves_outlined, color: Color(0xFFF2C94C), size: 14))))),
             ],
           ),
           const SizedBox(height: 12),
+
+          // TIME INTERPOLATION block (Oras ang i-iinput para iwas manual arithmetic)
+          const Text("TIME INTERPOLATION SPECIFICATION (AUTO)", style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 6),
           Row(
             children: [
-              Expanded(child: _buildInputWrapper(label: "Time fr. HW (h...)", child: TextFormField(controller: _timeFromHwStreamController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 14))))),
+              Expanded(
+                child: _buildInputWrapper(
+                  label: "HW Time (HH:MM)",
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(controller: _streamHwTimeController, decoration: const InputDecoration(border: InputBorder.none)),
+                      ),
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 18),
+                        onPressed: () async {
+                          TimeOfDay? picked = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 8, minute: 30),
+                          );
+                          if (picked != null) {
+                            final hourStr = picked.hour.toString().padLeft(2, '0');
+                            final minStr = picked.minute.toString().padLeft(2, '0');
+                            _streamHwTimeController.text = "$hourStr:$minStr";
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildInputWrapper(
+                  label: "Target Time (HH:MM)",
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(controller: _streamTargetTimeController, decoration: const InputDecoration(border: InputBorder.none)),
+                      ),
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 18),
+                        onPressed: () async {
+                          TimeOfDay? picked = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 12, minute: 0),
+                          );
+                          if (picked != null) {
+                            final hourStr = picked.hour.toString().padLeft(2, '0');
+                            final minStr = picked.minute.toString().padLeft(2, '0');
+                            _streamTargetTimeController.text = "$hourStr:$minStr";
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F2027),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF4F5D65).withOpacity(0.5)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Calculated Interval:", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      Text(_computedStreamIntervalString, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(child: _buildInputWrapper(label: "Direction (°)", child: TextFormField(controller: _directionController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.navigation, color: Color(0xFFF2C94C), size: 14))))),
             ],
           ),
           const SizedBox(height: 16),
+          
           ElevatedButton(
             onPressed: _calculateStandardDriftAndRecord,
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
           ),
           const SizedBox(height: 16),
+          
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: const Color(0xFF0F2027).withOpacity(0.6), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF2E4E58))),
             child: Column(
               children: [
-                const Text("INTERPOLATION LIVE GRAPH", style: TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 0.8)),
+                const Text("INTERPOLATION LIVE GRAPH (REALTIME UPDATE)", style: TextStyle(fontSize: 9, color: Colors.grey, letterSpacing: 0.8)),
                 const SizedBox(height: 12),
-                CustomPaint(size: const Size(double.infinity, 70), painter: TidalSinusoidalPainter(double.tryParse(_timeFromHwStreamController.text) ?? 3.5)),
+                CustomPaint(size: const Size(double.infinity, 70), painter: TidalSinusoidalPainter(_computedStreamHoursDouble)),
                 const SizedBox(height: 14),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -493,6 +725,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
+  // ================= TAB 3: ADVANCED STATIONS INTERPOLATION =================
   Widget _buildAdvancedTablesTab() {
     return Form(
       key: _formKey3,
@@ -550,7 +783,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 4: PANG-LOG HISTORY, EDIT, SAVE & PRINT =================
+  // ================= TAB 4: BRIDGE LOG HISTORY VIEW =================
   Widget _buildLogHistoryTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -635,12 +868,10 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.greenAccent),
                           ),
                           const SizedBox(width: 4),
-                          // Edit Button
                           IconButton(
                             icon: const Icon(Icons.edit, color: Colors.cyanAccent, size: 20),
                             onPressed: () => _editLogRecord(item, index),
                           ),
-                          // Delete Button
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                             onPressed: () => setState(() => _logbookRecords.removeAt(index)),
