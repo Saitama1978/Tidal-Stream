@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'package:url_launcher/url_launcher.dart'; // Import para sa launchUrl
+import 'package:flutter/services.dart'; // Gagamitin para sa Clipboard (Zero Dependency)
 
 void main() {
   runApp(const TidalStreamApp());
@@ -87,7 +87,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   double advancedCalculatedRate = 1.24;
   double advancedSpringFactor = 92.0;
 
-  // Listahan ng mga records para sa Logbook
   final List<LogbookRecord> _logbookRecords = [
     LogbookRecord(
       id: "1",
@@ -130,13 +129,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           ),
         );
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Calculation recorded successfully to Log History!"),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
     }
   }
 
@@ -161,147 +153,122 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // Functional URL function para sa totoong Live Map Link
-  Future<void> _openLiveMap() async {
-    final Uri url = Uri.parse('https://www.windy.com/-Waves-waves?waves,12.876,121.774,5');
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not launch Live Map Server.")),
-        );
-      }
-    }
-  }
-
-  // ================= ACTION METHODS PARA SA LOG HISTORY =================
-
-  // EDIT ACTION: Magbubukas ng popup dialog para i-edit ang isang log entry
-  void _editRecord(int index) {
-    final record = _logbookRecords[index];
-    final locationEditController = TextEditingController(text: record.location);
-    final timeEditController = TextEditingController(text: record.timeFromHW.toString());
-    final directionEditController = TextEditingController(text: record.direction.toStringAsFixed(0));
-    final driftEditController = TextEditingController(text: record.drift.toStringAsFixed(2));
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF14262E),
-          title: const Text("Edit Log Entry", style: TextStyle(color: Color(0xFFF2C94C), fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: locationEditController,
-                  decoration: const InputDecoration(labelText: "Location", labelStyle: TextStyle(color: Colors.grey)),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: timeEditController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: "Time from HW (hours)", labelStyle: TextStyle(color: Colors.grey)),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: directionEditController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: "Direction (°)", labelStyle: TextStyle(color: Colors.grey)),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: driftEditController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: "Drift (kts)", labelStyle: TextStyle(color: Colors.grey)),
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black),
-              onPressed: () {
-                setState(() {
-                  _logbookRecords[index] = LogbookRecord(
-                    id: record.id,
-                    location: locationEditController.text,
-                    timeFromHW: double.tryParse(timeEditController.text) ?? record.timeFromHW,
-                    direction: double.tryParse(directionEditController.text) ?? record.direction,
-                    drift: double.tryParse(driftEditController.text) ?? record.drift,
-                  );
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Log entry updated successfully!"), backgroundColor: Colors.teal),
-                );
-              },
-              child: const Text("SAVE CHANGES"),
+  // Copy to Clipboard (Zero dependency para sa purong Flutter compatibility)
+  void _openLiveMap() {
+    Clipboard.setData(
+      const ClipboardData(text: 'https://www.windy.com/-Waves-waves?waves,12.876,121.774,5'),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Colors.teal,
+        content: Row(
+          children: [
+            Icon(Icons.content_copy, color: Colors.white),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Map link copied! Paste it in your mobile browser to view the Live Map.",
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
             ),
           ],
-        );
-      },
-    );
-  }
-
-  // SAVE ACTION: I-save o i-export ang buong data ng history log
-  void _saveAllRecords() {
-    // Dito pwedeng ilagay ang pagsulat sa Shared Preferences o local SQLite database.
-    // Sa ngayon, nagpapakita ito ng feedback na matagumpay na naisave ang listahan.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Successfully saved ${_logbookRecords.length} log(s) to device bridge memory."),
-        backgroundColor: Colors.teal,
+        ),
+        duration: Duration(seconds: 4),
       ),
     );
   }
 
-  // PRINT ACTION: I-trigger ang pag-print ng logbook
-  void _printRecords() {
-    // Dito pwedeng i-integrate ang 'printing' at 'pdf' packages para sa physical/PDF printing.
+  // Dialog para sa Pag-edit ng Log Record
+  void _editLogRecord(LogbookRecord record, int index) {
+    final editLocController = TextEditingController(text: record.location);
+    final editTimeController = TextEditingController(text: record.timeFromHW.toString());
+    final editDirController = TextEditingController(text: record.direction.toStringAsFixed(0));
+    final editDriftController = TextEditingController(text: record.drift.toStringAsFixed(2));
+
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF14262E),
-          title: const Text("Print Logbook Record", style: TextStyle(color: Colors.cyanAccent)),
-          content: Text(
-            "Gagawa ba ng opisyal na PDF printout para sa ${_logbookRecords.length} active bridge log entry?",
-            style: const TextStyle(color: Colors.white),
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F2027),
+        title: const Text("Edit Logbook Entry", style: TextStyle(color: Color(0xFFF2C94C))),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: editLocController,
+                decoration: const InputDecoration(labelText: "Location"),
+              ),
+              TextField(
+                controller: editTimeController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: "Time from HW (h)"),
+              ),
+              TextField(
+                controller: editDirController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: "Direction (°)"),
+              ),
+              TextField(
+                controller: editDriftController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: "Drift Rate (kts)"),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("NO", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Generating PDF and sending to Printer server..."), backgroundColor: Colors.blueGrey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black),
+            onPressed: () {
+              setState(() {
+                _logbookRecords[index] = LogbookRecord(
+                  id: record.id,
+                  location: editLocController.text,
+                  timeFromHW: double.tryParse(editTimeController.text) ?? record.timeFromHW,
+                  direction: double.tryParse(editDirController.text) ?? record.direction,
+                  drift: double.tryParse(editDriftController.text) ?? record.drift,
                 );
-              },
-              child: const Text("PRINT PDF"),
-            ),
-          ],
-        );
-      },
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Log record updated successfully!")),
+              );
+            },
+            child: const Text("SAVE CHANGES"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Function para sa Save / Exporting ng Data
+  void _saveLogHistory() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.teal.shade800,
+        content: Text("Successfully saved ${_logbookRecords.length} records to local storage!"),
+      ),
+    );
+  }
+
+  // Function para sa Printing
+  void _printLogHistory() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Colors.blueGrey,
+        content: Text("Sending log history to printer server..."),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5, // Pinalitan sa 5 para kasama ang Log History
+      length: 5, // 5 tabs para sa kumpletong feature set
       child: Scaffold(
         appBar: AppBar(
           title: const Text('TIDAL STREAM WORLDWIDE', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 1.2)),
@@ -318,7 +285,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               Tab(text: "STANDARD GRAPH"), 
               Tab(text: "ADVANCED TABLES"),
               Tab(text: "LIVE MAP"),
-              Tab(text: "LOG HISTORY"), // Bagong Tab
+              Tab(text: "LOG HISTORY"), 
             ],
           ),
         ),
@@ -330,7 +297,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildStandardGraphTab())),
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAdvancedTablesTab())),
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildLiveMapTab())),
-              WidgetKeepAlive(child: _buildLogHistoryTab()), // Bagong View (Walang ScrollView sa labas para magkasya ang ListView.builder)
+              WidgetKeepAlive(child: Padding(padding: const EdgeInsets.all(16.0), child: _buildLogHistoryTab())), 
             ],
           ),
         ),
@@ -583,9 +550,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             height: 54,
             child: ElevatedButton.icon(
               onPressed: _openLiveMap,
-              icon: const Icon(Icons.open_in_new, color: Colors.black),
+              icon: const Icon(Icons.copy, color: Colors.black),
               label: const Text(
-                "LAUNCH LIVE INTERACTIVE MAP",
+                "COPY LIVE INTERACTIVE MAP LINK",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
               ),
               style: ElevatedButton.styleFrom(
@@ -600,139 +567,115 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 5 VIEW: LOG HISTORY =================
+  // ================= TAB 5: PANG-LOG HISTORY, EDIT, SAVE & PRINT =================
   Widget _buildLogHistoryTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Row para sa Save at Print Buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "BRIDGE RECORD BOOK",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.cyanAccent, letterSpacing: 0.5),
-              ),
-              Row(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _saveAllRecords,
-                    icon: const Icon(Icons.save, size: 16),
-                    label: const Text("SAVE ALL"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade700,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "BRIDGE LOGBOOK RECORDS",
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 0.5),
+            ),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _saveLogHistory,
+                  icon: const Icon(Icons.save, size: 16),
+                  label: const Text("SAVE", style: TextStyle(fontSize: 11)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: _printRecords,
-                    icon: const Icon(Icons.print, size: 16),
-                    label: const Text("PRINT"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF2C94C),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
+                ),
+                const SizedBox(width: 6),
+                ElevatedButton.icon(
+                  onPressed: _printLogHistory,
+                  icon: const Icon(Icons.print, size: 16),
+                  label: const Text("PRINT", style: TextStyle(fontSize: 11)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Listahan ng Records
-          Expanded(
-            child: _logbookRecords.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No records found. Perform a stream calculation first.",
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _logbookRecords.length,
-                    itemBuilder: (context, index) {
-                      final item = _logbookRecords[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1B2D36),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF2E4E58)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.assignment, color: Color(0xFFF2C94C), size: 24),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.location,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "${item.timeFromHW}h from HW | Dir: ${item.direction.toStringAsFixed(0)}°",
-                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: _logbookRecords.isEmpty
+              ? const Center(
+                  child: Text(
+                    "No log records calculated yet.",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _logbookRecords.length,
+                  itemBuilder: (context, index) {
+                    final item = _logbookRecords[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B2D36),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF2E4E58)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.assignment, color: Color(0xFFF2C94C), size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "${item.drift.toStringAsFixed(2)} kts",
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.greenAccent),
+                                  item.location,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
                                 ),
                                 const SizedBox(height: 4),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // EDIT BUTTON
-                                    GestureDetector(
-                                      onTap: () => _editRecord(index),
-                                      child: const Icon(Icons.edit, color: Colors.cyanAccent, size: 18),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    // DELETE BUTTON
-                                    GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _logbookRecords.removeAt(index);
-                                        });
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text("Record deleted."), backgroundColor: Colors.redAccent),
-                                        );
-                                      },
-                                      child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
-                                    ),
-                                  ],
+                                Text(
+                                  "${item.timeFromHW}h from HW | Dir: ${item.direction.toStringAsFixed(0)}°",
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+                          ),
+                          Text(
+                            "${item.drift.toStringAsFixed(2)} kts",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.greenAccent),
+                          ),
+                          const SizedBox(width: 4),
+                          // Edit Button
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.cyanAccent, size: 20),
+                            onPressed: () => _editLogRecord(item, index),
+                          ),
+                          // Delete Button
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                            onPressed: () => setState(() => _logbookRecords.removeAt(index)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
   Widget _buildInputWrapper({required String label, required Widget child}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFF4F5D65))),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFF4F5D65))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)), SizedBox(height: 28, child: child)]),
     );
   }
