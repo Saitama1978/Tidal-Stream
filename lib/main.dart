@@ -59,6 +59,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _locHeightController = TextEditingController(text: "Manila Harbor");
   final _hwHeightController = TextEditingController(text: "2.5");
   final _lwHeightController = TextEditingController(text: "0.4");
+  final _htTimeController = TextEditingController(text: "08:30"); // Oras ng High Tide
   final _timeFromHwHeightController = TextEditingController(text: "3.5");
 
   final _locationController = TextEditingController(text: "San Bernardino Strait");
@@ -82,6 +83,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _streamNeapMaxController = TextEditingController(text: "1.5");
 
   double estimatedHeight = 1.18;
+  String targetTimeResult = "12:00"; // Resultang target na oras ng kalkulasyon
   double estimatedDrift = 2.42;
   double setDirection = 45.0;
   double advancedCalculatedRate = 1.24;
@@ -102,9 +104,34 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       double hw = double.tryParse(_hwHeightController.text) ?? 0.0;
       double lw = double.tryParse(_lwHeightController.text) ?? 0.0;
       double hours = double.tryParse(_timeFromHwHeightController.text) ?? 0.0;
-      double factor = (cos((hours.clamp(0.0, 6.0) / 6.0) * pi) + 1) / 2;
+      double factor = (cos((hours.clamp(-6.0, 6.0).abs() / 6.0) * pi) + 1) / 2;
+      
       setState(() {
         estimatedHeight = lw + (factor * (hw - lw));
+
+        // Kalkulahin ang target calculation time
+        String htText = _htTimeController.text.trim();
+        List<String> parts = htText.split(':');
+        int htHour = 8;
+        int htMin = 30;
+        if (parts.length == 2) {
+          htHour = int.tryParse(parts[0]) ?? 8;
+          htMin = int.tryParse(parts[1]) ?? 30;
+        }
+
+        double totalHours = (htHour + (htMin / 60.0) + hours) % 24;
+        if (totalHours < 0) totalHours += 24;
+
+        int targetHour = totalHours.floor();
+        int targetMin = ((totalHours - targetHour) * 60).round();
+        if (targetMin == 60) {
+          targetHour = (targetHour + 1) % 24;
+          targetMin = 0;
+        }
+
+        String hourStr = targetHour.toString().padLeft(2, '0');
+        String minStr = targetMin.toString().padLeft(2, '0');
+        targetTimeResult = "$hourStr:$minStr";
       });
     }
   }
@@ -151,31 +178,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
         advancedCalculatedRate = neapMaxRate + (rangeFactor * (springMaxRate - neapMaxRate));
       });
     }
-  }
-
-  // Copy to Clipboard (Zero dependency para sa purong Flutter compatibility)
-  void _openLiveMap() {
-    Clipboard.setData(
-      const ClipboardData(text: 'https://www.windy.com/-Waves-waves?waves,12.876,121.774,5'),
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: Colors.teal,
-        content: Row(
-          children: [
-            Icon(Icons.content_copy, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                "Map link copied! Paste it in your mobile browser to view the Live Map.",
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
-        ),
-        duration: Duration(seconds: 4),
-      ),
-    );
   }
 
   // Dialog para sa Pag-edit ng Log Record
@@ -268,7 +270,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5, // 5 tabs para sa kumpletong feature set
+      length: 4, // 4 tabs na lang dahil tinanggal ang Live Map
       child: Scaffold(
         appBar: AppBar(
           title: const Text('TIDAL STREAM WORLDWIDE', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 1.2)),
@@ -284,7 +286,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               Tab(text: "HEIGHT"), 
               Tab(text: "STANDARD GRAPH"), 
               Tab(text: "ADVANCED TABLES"),
-              Tab(text: "LIVE MAP"),
               Tab(text: "LOG HISTORY"), 
             ],
           ),
@@ -296,7 +297,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildHeightTab())),
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildStandardGraphTab())),
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAdvancedTablesTab())),
-              WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildLiveMapTab())),
               WidgetKeepAlive(child: Padding(padding: const EdgeInsets.all(16.0), child: _buildLogHistoryTab())), 
             ],
           ),
@@ -334,9 +334,50 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildInputWrapper(
-            label: "Time fr. HW (hours)",
-            child: TextFormField(controller: _timeFromHwHeightController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.access_time, color: Color(0xFFF2C94C)))),
+          // Bagon Row para sa Oras ng High Tide at Oras mula High Tide (Time from HW)
+          Row(
+            children: [
+              Expanded(
+                child: _buildInputWrapper(
+                  label: "HT Time (HH:MM)",
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _htTimeController,
+                          decoration: const InputDecoration(border: InputBorder.none, hintText: "08:30"),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.access_time, color: Color(0xFFF2C94C), size: 18),
+                        onPressed: () async {
+                          TimeOfDay? picked = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 8, minute: 30),
+                          );
+                          if (picked != null) {
+                            final hourStr = picked.hour.toString().padLeft(2, '0');
+                            final minStr = picked.minute.toString().padLeft(2, '0');
+                            _htTimeController.text = "$hourStr:$minStr";
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildInputWrapper(
+                  label: "Time fr. HW (hours)",
+                  child: TextFormField(
+                    controller: _timeFromHwHeightController, 
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true), 
+                    decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.hourglass_empty, color: Color(0xFFF2C94C), size: 16)),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -350,7 +391,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             decoration: BoxDecoration(color: const Color(0xFF0F2027).withOpacity(0.5), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFF2C94C).withOpacity(0.4))),
             child: Column(
               children: [
-                const Text("ESTIMATED TIDAL HEIGHT", style: TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1)),
+                Text("ESTIMATED TIDAL HEIGHT AT $targetTimeResult", style: const TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Text("${estimatedHeight.toStringAsFixed(2)} m", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
               ],
@@ -509,65 +550,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  Widget _buildLiveMapTab() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Icon(Icons.language_rounded, size: 70, color: Colors.cyanAccent),
-          const SizedBox(height: 16),
-          const Text(
-            "GLOBAL OCEAN CURRENTS MAP",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 0.5),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            "Upang makasiguro sa katatagan ng app sa bridge, ang live interactive mapping ay bubuksan gamit ang external security web application link.",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F2027).withOpacity(0.5),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.teal.withOpacity(0.3)),
-            ),
-            child: Column(
-              children: [
-                Row(children: const [Icon(Icons.check_circle, color: Colors.greenAccent, size: 18), SizedBox(width: 8), Text("Windy Live Stream Server Validated", style: TextStyle(fontSize: 12))]),
-                const SizedBox(height: 8),
-                Row(children: const [Icon(Icons.check_circle, color: Colors.greenAccent, size: 18), SizedBox(width: 8), Text("Real-Time Current Particles Active", style: TextStyle(fontSize: 12))]),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          SizedBox(
-            height: 54,
-            child: ElevatedButton.icon(
-              onPressed: _openLiveMap,
-              icon: const Icon(Icons.copy, color: Colors.black),
-              label: const Text(
-                "COPY LIVE INTERACTIVE MAP LINK",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF2C94C),
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================= TAB 5: PANG-LOG HISTORY, EDIT, SAVE & PRINT =================
+  // ================= TAB 4: PANG-LOG HISTORY, EDIT, SAVE & PRINT =================
   Widget _buildLogHistoryTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
