@@ -675,6 +675,110 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
+  // Interactive English User Guide System
+  void _showUserGuideDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F2027),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.menu_book, color: Color(0xFFF2C94C)),
+            SizedBox(width: 8),
+            Text(
+              "USER MANUAL",
+              style: TextStyle(
+                color: Color(0xFFF2C94C),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildGuideSection(
+                  title: "1. HEIGHT TAB (Sinusoidal Height)",
+                  description: "Interpolates tidal heights between High Water (HW) and Low Water (LW).\n\n"
+                      "• Enter the target Location and tide levels (HW/LW) in meters.\n"
+                      "• Pick/Enter the exact High Water, Low Water, and Departure times.\n"
+                      "• The app automatically performs a standard harmonic (sinusoidal) curve calculation to estimate the safe clearance height at your specified departure time.",
+                ),
+                const Divider(color: Colors.grey, height: 24),
+                _buildGuideSection(
+                  title: "2. STANDARD GRAPH TAB (Sinusoidal Drift)",
+                  description: "Calculates real-time tidal stream velocities (Drift) using sinusoidal interpolation.\n\n"
+                      "• Input Voyage Location and coordinates (Lat/Long).\n"
+                      "• Provide reference HW/LW speeds (Spring and Neap rates) in knots.\n"
+                      "• Set the High Water reference time and your Target Time.\n"
+                      "• Visualise current acceleration/decay on the live interactive graph.\n"
+                      "• Press COMPUTE & RECORD to save the computed vectors directly to your Log History.",
+                ),
+                const Divider(color: Colors.grey, height: 24),
+                _buildGuideSection(
+                  title: "3. ADVANCED TABLES TAB (Ratio of Ranges)",
+                  description: "Performs secondary port current calculations based on the standard Admiralty Method (Ratio of Ranges).\n\n"
+                      "• Input Today's Tide Levels and mean reference range values.\n"
+                      "• Provide max reference velocities for Spring and Neap conditions.\n"
+                      "• Calculates the current velocity accurately for transition days (between Springs & Neaps).",
+                ),
+                const Divider(color: Colors.grey, height: 24),
+                _buildGuideSection(
+                  title: "4. LOG HISTORY, SAVE & PRINT",
+                  description: "Manage logs and export them for marine safety audits.\n\n"
+                      "• SAVE: Exports voyage logs. Select output directory, format (CSV/HTML/TXT) and copies the formatted stream to clipboard.\n"
+                      "• PRINT: Prepares printer layouts. Select paper sizes (A4, Letter, Legal) and page orientation (Portrait/Landscape) with mock spooling.",
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF2C94C),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("DISMISS", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuideSection({required String title, required String description}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.cyanAccent,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          description,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -685,6 +789,13 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           centerTitle: true,
           backgroundColor: const Color(0xFF0F2027),
           elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.help_outline, color: Color(0xFFF2C94C)),
+              onPressed: _showUserGuideDialog,
+              tooltip: "User Guide",
+            ),
+          ],
           bottom: const TabBar(
             indicatorColor: Color(0xFFF2C94C),
             labelColor: Color(0xFFF2C94C),
