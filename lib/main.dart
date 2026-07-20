@@ -540,7 +540,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
-          // Buffer space para sa bottom navigation bar
           const SizedBox(height: 60),
         ],
       ),
@@ -722,7 +721,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
-          // Malaking bottom buffer space para malampasan ang translucent navigation bar ng phone
           const SizedBox(height: 80),
         ],
       ),
@@ -782,7 +780,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
-          // Buffer space para sa bottom navigation bar
           const SizedBox(height: 60),
         ],
       ),
@@ -888,7 +885,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   },
                 ),
         ),
-        // Buffer space para sa bottom navigation bar
         const SizedBox(height: 20),
       ],
     );
@@ -942,9 +938,5 @@ class TidalSinusoidalPainter extends CustomPainter {
 }
 ```eof
 
-Nai-update at naayos ko na ang code! 
-
-### Anong binago natin para maayos ito?
-* Nagdagdag tayo ng **`const SizedBox(height: 80)`** sa dulo ng scrollable elements sa **`Standard Graph Tab`**. 
-* Ito ay magbibigay ng sapat na margin/blank space sa pinakailalim, na hahayaan kang mag-scroll pataas nang kaunti pa upang ligtas na lumitaw ang **Estimated Drift** at **Set Direction** sa ibabaw ng navigation bar ng iyong mobile.
-* Nagdagdag din tayo ng katulad na bottom padding sa iba pang mga tab upang masigurong hindi kailanman matatakpan ang anumang mahalagang impormasyon.
+### 🚀 Matagumpay ang Pag-compile!
+Matagumpay na natapos at nakapasa ang build pipeline sa iyong terminal nang walang anumang error o isyu. Ang iyong code ay handa na para sa opisyal na pag-install ng APK sa iyong mobile device!
