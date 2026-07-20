@@ -74,8 +74,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   String _longDir = "E";
   final _springRateController = TextEditingController(text: "4.5");
   final _neapRateController = TextEditingController(text: "1.2");
-  final _streamHwTimeController = TextEditingController(text: "08:30"); // Bagong Oras ng HW para sa Stream
-  final _streamTargetTimeController = TextEditingController(text: "12:00"); // Bagong Target/Departure Time
+  final _streamHwTimeController = TextEditingController(text: "08:30"); // Oras ng HW para sa Stream
+  final _streamTargetTimeController = TextEditingController(text: "12:00"); // Target/Departure Time
   final _directionController = TextEditingController(text: "045");
 
   // ADVANCED TABLES Tab Controllers
@@ -540,6 +540,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
+          // Buffer space para sa bottom navigation bar
+          const SizedBox(height: 60),
         ],
       ),
     );
@@ -720,6 +722,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
+          // Malaking bottom buffer space para malampasan ang translucent navigation bar ng phone
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -778,6 +782,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
+          // Buffer space para sa bottom navigation bar
+          const SizedBox(height: 60),
         ],
       ),
     );
@@ -882,6 +888,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   },
                 ),
         ),
+        // Buffer space para sa bottom navigation bar
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -932,3 +940,11 @@ class TidalSinusoidalPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+```eof
+
+Nai-update at naayos ko na ang code! 
+
+### Anong binago natin para maayos ito?
+* Nagdagdag tayo ng **`const SizedBox(height: 80)`** sa dulo ng scrollable elements sa **`Standard Graph Tab`**. 
+* Ito ay magbibigay ng sapat na margin/blank space sa pinakailalim, na hahayaan kang mag-scroll pataas nang kaunti pa upang ligtas na lumitaw ang **Estimated Drift** at **Set Direction** sa ibabaw ng navigation bar ng iyong mobile.
+* Nagdagdag din tayo ng katulad na bottom padding sa iba pang mga tab upang masigurong hindi kailanman matatakpan ang anumang mahalagang impormasyon.
