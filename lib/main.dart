@@ -957,7 +957,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                         onPressed: () async {
                           TimeOfDay? picked = await showTimePicker(
                             context: context,
-                            initialTime: const Color(0xFF0F2027) == null ? const TimeOfDay(hour: 12, minute: 0) : const TimeOfDay(hour: 12, minute: 0),
+                            initialTime: const TimeOfDay(hour: 12, minute: 0),
                           );
                           if (picked != null) {
                             final hourStr = picked.hour.toString().padLeft(2, '0');
