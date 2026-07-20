@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'package:flutter/services.dart'; // Gagamitin para sa Clipboard (Zero Dependency para iwas build failure)
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const TidalStreamApp());
@@ -60,9 +60,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final _locHeightController = TextEditingController(text: "Manila Harbor");
   final _hwHeightController = TextEditingController(text: "2.5");
   final _lwHeightController = TextEditingController(text: "0.4");
-  final _hwTimeController = TextEditingController(text: "08:30"); // Oras ng High Tide
-  final _lwTimeController = TextEditingController(text: "14:30"); // Oras ng Low Tide
-  final _depTimeController = TextEditingController(text: "12:00"); // Target / Departure Time
+  final _hwTimeController = TextEditingController(text: "08:30");
+  final _lwTimeController = TextEditingController(text: "14:30");
+  final _depTimeController = TextEditingController(text: "12:00");
 
   // STANDARD GRAPH Tab Controllers
   final _locationController = TextEditingController(text: "San Bernardino Strait");
@@ -74,8 +74,8 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   String _longDir = "E";
   final _springRateController = TextEditingController(text: "4.5");
   final _neapRateController = TextEditingController(text: "1.2");
-  final _streamHwTimeController = TextEditingController(text: "08:30"); // Oras ng HW para sa Stream
-  final _streamTargetTimeController = TextEditingController(text: "12:00"); // Target/Departure Time
+  final _streamHwTimeController = TextEditingController(text: "08:30");
+  final _streamTargetTimeController = TextEditingController(text: "12:00");
   final _directionController = TextEditingController(text: "045");
 
   // ADVANCED TABLES Tab Controllers
@@ -109,14 +109,12 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   void initState() {
     super.initState();
     
-    // Auto-calculation listener para sa Height Tab
     _hwHeightController.addListener(_autoCalculateHeight);
     _lwHeightController.addListener(_autoCalculateHeight);
     _hwTimeController.addListener(_autoCalculateHeight);
     _lwTimeController.addListener(_autoCalculateHeight);
     _depTimeController.addListener(_autoCalculateHeight);
 
-    // Auto-calculation listener para sa Standard Graph Tab
     _streamHwTimeController.addListener(_autoCalculateStream);
     _streamTargetTimeController.addListener(_autoCalculateStream);
     _springRateController.addListener(_autoCalculateStream);
@@ -143,7 +141,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     super.dispose();
   }
 
-  // Helper para i-parse ang "HH:MM" format sa numeric decimal hours
   double? _parseTimeToHours(String timeStr) {
     try {
       List<String> parts = timeStr.trim().split(':');
@@ -157,7 +154,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // Auto-calculation gamit ang sinusoidal tidal interpolation para sa HEIGHT Tab
   void _autoCalculateHeight() {
     double? hw = double.tryParse(_hwHeightController.text);
     double? lw = double.tryParse(_lwHeightController.text);
@@ -190,7 +186,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // Auto-calculation para sa STANDARD GRAPH Tab gamit ang clock times
   void _autoCalculateStream() {
     double? tHW = _parseTimeToHours(_streamHwTimeController.text);
     double? tTarget = _parseTimeToHours(_streamTargetTimeController.text);
@@ -212,7 +207,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // Kukunin ang kasalukuyang calculated interval para sa Standard Graph
   double get _computedStreamHoursDouble {
     double? tHW = _parseTimeToHours(_streamHwTimeController.text);
     double? tTarget = _parseTimeToHours(_streamTargetTimeController.text);
@@ -230,7 +224,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     return "${hours.toStringAsFixed(2)} hrs";
   }
 
-  // Pagre-record ng nakalkulang drift sa Logbook history
   void _calculateStandardDriftAndRecord() {
     if (_formKey2.currentState!.validate()) {
       double hours = _computedStreamHoursDouble;
@@ -273,7 +266,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
-  // Dialog para sa Pag-edit ng Log Record
   void _editLogRecord(LogbookRecord record, int index) {
     final editLocController = TextEditingController(text: record.location);
     final editTimeController = TextEditingController(text: record.timeFromHW.toString());
@@ -340,7 +332,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // Interactive Save/Export System with Directory Options
   void _showExportDialog() {
     String selectedPath = "Internal Storage/Documents/VoyageLogs/";
     String fileFormat = "CSV (Excel Compatible)";
@@ -469,7 +460,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   String finalPath = isCustomPath ? customPathController.text : selectedPath;
                   String finalFile = nameController.text;
                   
-                  // Copy audit-ready data stream to Clipboard as a 100% stable local export system
                   String dataStream = "Location,Time From HW,Direction,Drift\n";
                   for (var r in _logbookRecords) {
                     dataStream += "${r.location},${r.timeFromHW}h,${r.direction}°,${r.drift} kts\n";
@@ -493,7 +483,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // Interactive Print Configuration Dialog with Options
   void _showPrintDialog() {
     String selectedPrinter = "Bridge LaserJet Printer (LAN)";
     String paperSize = "A4 (Standard)";
@@ -647,7 +636,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 onPressed: () {
                   Navigator.pop(context);
                   
-                  // Interactive paper alignment / printer spooler progress mockup
                   showDialog(
                     context: context,
                     barrierDismissible: false,
@@ -690,7 +678,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4, // HEIGHT, STANDARD GRAPH, ADVANCED TABLES, LOG HISTORY
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('TIDAL STREAM WORLDWIDE', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF2C94C), letterSpacing: 1.2)),
@@ -725,7 +713,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 1: TIDAL HEIGHT INTERPOLATION =================
   Widget _buildHeightTab() {
     return Form(
       key: _formKey1,
@@ -738,7 +725,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           ),
           const SizedBox(height: 16),
           
-          // HIGH TIDE BLOCK
           const Text("HIGH TIDE SPECIFICATION (HW)", style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
           const SizedBox(height: 6),
           Row(
@@ -782,7 +768,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           ),
           const SizedBox(height: 16),
 
-          // LOW TIDE BLOCK
           const Text("LOW TIDE SPECIFICATION (LW)", style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
           const SizedBox(height: 6),
           Row(
@@ -825,8 +810,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ],
           ),
           const SizedBox(height: 16),
-
-          // DEPARTURE SPECIFICATION
           const Text("DEPARTURE SPECIFICATION", style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
           const SizedBox(height: 6),
           _buildInputWrapper(
@@ -855,7 +838,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
-          
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(20),
@@ -874,7 +856,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 2: STREAM STANDARD GRAPH (TIME-BASED AUTO INTERPOLATION) =================
   Widget _buildStandardGraphTab() {
     return Form(
       key: _formKey2,
@@ -920,8 +901,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ],
           ),
           const SizedBox(height: 12),
-          
-          // SPRING / NEAP SPEED SPECS
           Row(
             children: [
               Expanded(child: _buildInputWrapper(label: "HW Rate / Spring (kts)", child: TextFormField(controller: _springRateController, decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.bolt, color: Color(0xFFF2C94C), size: 14))))),
@@ -930,8 +909,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ],
           ),
           const SizedBox(height: 12),
-
-          // TIME INTERPOLATION block (Oras ang i-iinput para iwas manual arithmetic)
           const Text("TIME INTERPOLATION SPECIFICATION (AUTO)", style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
           const SizedBox(height: 6),
           Row(
@@ -980,7 +957,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                         onPressed: () async {
                           TimeOfDay? picked = await showTimePicker(
                             context: context,
-                            initialTime: const TimeOfDay(hour: 12, minute: 0),
+                            initialTime: const Color(0xFF0F2027) == null ? const TimeOfDay(hour: 12, minute: 0) : const TimeOfDay(hour: 12, minute: 0),
                           );
                           if (picked != null) {
                             final hourStr = picked.hour.toString().padLeft(2, '0');
@@ -996,7 +973,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ],
           ),
           const SizedBox(height: 12),
-
           Row(
             children: [
               Expanded(
@@ -1022,14 +998,12 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             ],
           ),
           const SizedBox(height: 16),
-          
           ElevatedButton(
             onPressed: _calculateStandardDriftAndRecord,
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
           ),
           const SizedBox(height: 16),
-          
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: const Color(0xFF0F2027).withOpacity(0.6), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF2E4E58))),
@@ -1055,7 +1029,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 3: ADVANCED STATIONS INTERPOLATION =================
   Widget _buildAdvancedTablesTab() {
     return Form(
       key: _formKey3,
@@ -1114,7 +1087,6 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     );
   }
 
-  // ================= TAB 4: BRIDGE LOG HISTORY VIEW =================
   Widget _buildLogHistoryTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1129,7 +1101,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             Row(
               children: [
                 ElevatedButton.icon(
-                  onPressed: _showExportDialog, // Custom Export Dialog triggered
+                  onPressed: _showExportDialog,
                   icon: const Icon(Icons.save, size: 16),
                   label: const Text("SAVE", style: TextStyle(fontSize: 11)),
                   style: ElevatedButton.styleFrom(
@@ -1140,7 +1112,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                 ),
                 const SizedBox(width: 6),
                 ElevatedButton.icon(
-                  onPressed: _showPrintDialog, // Custom Print Setup triggered
+                  onPressed: _showPrintDialog,
                   icon: const Icon(Icons.print, size: 16),
                   label: const Text("PRINT", style: TextStyle(fontSize: 11)),
                   style: ElevatedButton.styleFrom(
@@ -1265,10 +1237,3 @@ class TidalSinusoidalPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 ```eof
-
-### ⚓️ Voyage-Ready Update Complete!
-Ang iyong aplikasyon ay mayroon nang kumpletong Bridge Export Manager at Custom Print Setup. 
-
-*   **Export Settings:** Pinapayagan ka nitong pumili sa pagitan ng mga default na lagakan ng voyage file (SD Card, USB OTG drive, o custom path) at piliin ang file format na angkop sa iyong logbook audits (CSV, HTML, o plain TXT).
-*   **Print Setup:** Binibigyan ka ng kontrol sa layout tulad ng Paper Size (A4, Letter, Legal) at Orientation (Portrait/Landscape) bago ipadala ang spool layout sa printer ng kapitan o opisyal na printer ng bridge.
-*   **Safe Pipeline compilation:** Ang lahat ng ginamit na klase ay zero-dependency at native kaya **100% papasa ito sa iyong GitHub Actions automated builder** nang walang anumang isyu!
