@@ -28,19 +28,21 @@ class TidalStreamApp extends StatelessWidget {
   }
 }
 
+enum LogType { height, standard, advanced }
+
 class LogbookRecord {
   String id;
+  LogType type;
   String location;
-  double timeFromHW;
-  double direction;
-  double drift;
+  String details;
+  String primaryResult;
 
   LogbookRecord({
     required this.id,
+    required this.type,
     required this.location,
-    required this.timeFromHW,
-    required this.direction,
-    required this.drift,
+    required this.details,
+    required this.primaryResult,
   });
 }
 
@@ -98,10 +100,10 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
   final List<LogbookRecord> _logbookRecords = [
     LogbookRecord(
       id: "1",
+      type: LogType.standard,
       location: "San Bernardino Strait",
-      timeFromHW: 3.5,
-      direction: 45.0,
-      drift: 2.42,
+      details: "3.50h from HW | Dir: 45°",
+      primaryResult: "2.42 kts",
     ),
   ];
 
@@ -186,6 +188,27 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     }
   }
 
+  void _calculateHeightAndRecord() {
+    if (_formKey1.currentState!.validate()) {
+      _autoCalculateHeight();
+      setState(() {
+        _logbookRecords.insert(
+          0,
+          LogbookRecord(
+            id: DateTime.now().toString(),
+            type: LogType.height,
+            location: _locHeightController.text.isEmpty ? "Manila Harbor" : _locHeightController.text,
+            details: "Target Time: ${_depTimeController.text} | HW: ${_hwHeightController.text}m / LW: ${_lwHeightController.text}m",
+            primaryResult: "${estimatedHeight.toStringAsFixed(2)} m",
+          ),
+        );
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Height calculation recorded in Logbook!")),
+      );
+    }
+  }
+
   void _autoCalculateStream() {
     double? tHW = _parseTimeToHours(_streamHwTimeController.text);
     double? tTarget = _parseTimeToHours(_streamTargetTimeController.text);
@@ -226,26 +249,27 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
 
   void _calculateStandardDriftAndRecord() {
     if (_formKey2.currentState!.validate()) {
+      _autoCalculateStream();
       double hours = _computedStreamHoursDouble;
       setState(() {
         _logbookRecords.insert(
           0,
           LogbookRecord(
             id: DateTime.now().toString(),
-            location: _locationController.text,
-            timeFromHW: double.parse(hours.toStringAsFixed(2)),
-            direction: setDirection,
-            drift: estimatedDrift,
+            type: LogType.standard,
+            location: _locationController.text.isEmpty ? "San Bernardino Strait" : _locationController.text,
+            details: "${hours.toStringAsFixed(2)}h from HW | Dir: ${setDirection.toStringAsFixed(0)}°",
+            primaryResult: "${estimatedDrift.toStringAsFixed(2)} kts",
           ),
         );
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Bridge logbook entry recorded successfully!")),
+        const SnackBar(content: Text("Standard Stream recorded in Logbook!")),
       );
     }
   }
 
-  void _calculateAdvancedStream() {
+  void _calculateAdvancedStreamAndRecord() {
     if (_formKey3.currentState!.validate()) {
       double hwHeight = double.tryParse(_tableHwHeightController.text) ?? 0.0;
       double lwHeight = double.tryParse(_tableLwHeightController.text) ?? 0.0;
@@ -259,22 +283,36 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
       if ((msr - mnp).abs() > 0.01) {
         rangeFactor = ((currentRange - mnp) / (msr - mnp)).clamp(0.0, 1.0);
       }
+      
+      double calcRate = neapMaxRate + (rangeFactor * (springMaxRate - neapMaxRate));
+      double springFactorPct = rangeFactor * 100;
+
       setState(() {
-        advancedSpringFactor = rangeFactor * 100;
-        // Naayos na ang pormula: Neap Rate pataas patungong Spring Rate
-        advancedCalculatedRate = neapMaxRate + (rangeFactor * (springMaxRate - neapMaxRate));
+        advancedSpringFactor = springFactorPct;
+        advancedCalculatedRate = calcRate;
+
+        _logbookRecords.insert(
+          0,
+          LogbookRecord(
+            id: DateTime.now().toString(),
+            type: LogType.advanced,
+            location: _tableStationController.text.isEmpty ? "Port Reference Table" : _tableStationController.text,
+            details: "Spring Factor: ${springFactorPct.toStringAsFixed(0)}% | Range: ${currentRange.toStringAsFixed(1)}m",
+            primaryResult: "${calcRate.toStringAsFixed(2)} kts",
+          ),
+        );
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Advanced stream interpolation computed successfully!")),
+        const SnackBar(content: Text("Advanced Stream recorded in Logbook!")),
       );
     }
   }
 
   void _editLogRecord(LogbookRecord record, int index) {
     final editLocController = TextEditingController(text: record.location);
-    final editTimeController = TextEditingController(text: record.timeFromHW.toString());
-    final editDirController = TextEditingController(text: record.direction.toStringAsFixed(0));
-    final editDriftController = TextEditingController(text: record.drift.toStringAsFixed(2));
+    final editDetailsController = TextEditingController(text: record.details);
+    final editResultController = TextEditingController(text: record.primaryResult);
 
     showDialog(
       context: context,
@@ -287,22 +325,15 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             children: [
               TextField(
                 controller: editLocController,
-                decoration: const InputDecoration(labelText: "Location"),
+                decoration: const InputDecoration(labelText: "Location / Station"),
               ),
               TextField(
-                controller: editTimeController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: "Time from HW (h)"),
+                controller: editDetailsController,
+                decoration: const InputDecoration(labelText: "Details / Parameters"),
               ),
               TextField(
-                controller: editDirController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: "Direction (°)"),
-              ),
-              TextField(
-                controller: editDriftController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: "Drift Rate (kts)"),
+                controller: editResultController,
+                decoration: const InputDecoration(labelText: "Primary Result"),
               ),
             ],
           ),
@@ -318,10 +349,10 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               setState(() {
                 _logbookRecords[index] = LogbookRecord(
                   id: record.id,
+                  type: record.type,
                   location: editLocController.text,
-                  timeFromHW: double.tryParse(editTimeController.text) ?? record.timeFromHW,
-                  direction: double.tryParse(editDirController.text) ?? record.direction,
-                  drift: double.tryParse(editDriftController.text) ?? record.drift,
+                  details: editDetailsController.text,
+                  primaryResult: editResultController.text,
                 );
               });
               Navigator.pop(context);
@@ -345,7 +376,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           children: const [
             Icon(Icons.help_outline, color: Color(0xFFF2C94C)),
             SizedBox(width: 8),
-            Text("User Guide (English)", style: TextStyle(color: Color(0xFFF2C94C), fontSize: 18, fontWeight: FontWeight.bold)),
+            Text("User Guide", style: TextStyle(color: Color(0xFFF2C94C), fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
         content: SingleChildScrollView(
@@ -354,16 +385,16 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
             mainAxisSize: MainAxisSize.min,
             children: const [
               Text("1. HEIGHT TAB", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
-              Text("Calculates the estimated tidal height at a target departure time using standard cosine interpolation curves based on HW and LW parameters.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text("Calculates and logs the estimated tidal height at departure time.", style: TextStyle(fontSize: 12, color: Colors.grey)),
               SizedBox(height: 12),
               Text("2. STANDARD GRAPH TAB", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
-              Text("Computes current drift and set direction using Spring and Neap tidal rates based on time intervals from High Water. Allows saving directly to Bridge Logbook.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text("Computes and logs tidal current drift and set direction using sinusoidal curves.", style: TextStyle(fontSize: 12, color: Colors.grey)),
               SizedBox(height: 12),
               Text("3. ADVANCED TABLES TAB", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
-              Text("Performs advanced corrections utilizing Admiralty table heights and velocity standards to factor spring/neap ranges accurately.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text("Performs and logs advanced table-based stream interpolation.", style: TextStyle(fontSize: 12, color: Colors.grey)),
               SizedBox(height: 12),
               Text("4. LOG HISTORY TAB", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
-              Text("Manages recorded voyage calculations with support for export simulation and printing format setup.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text("Displays all recorded calculations from all tabs with export and print functions.", style: TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
         ),
@@ -384,339 +415,92 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
     final nameController = TextEditingController(
       text: "TidalStream_Logbook_${DateTime.now().year}_${DateTime.now().month.toString().padLeft(2, '0')}.csv"
     );
-    bool isCustomPath = false;
-    final customPathController = TextEditingController(text: "/storage/emulated/0/Download/");
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFF0F2027),
-            title: Row(
-              children: const [
-                Icon(Icons.folder_shared, color: Color(0xFFF2C94C)),
-                SizedBox(width: 8),
-                Text("Export Manager", style: TextStyle(color: Color(0xFFF2C94C), fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Select Target Folder Directory:", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade700),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: isCustomPath ? "Custom Path..." : selectedPath,
-                        isExpanded: true,
-                        dropdownColor: const Color(0xFF0F2027),
-                        items: [
-                          "Internal Storage/Documents/VoyageLogs/",
-                          "External SD Card/MarineData/Tides/",
-                          "OTG USB Drive/BridgeLogbook/",
-                          "Custom Path..."
-                        ].map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13)))).toList(),
-                        onChanged: (val) {
-                          setDialogState(() {
-                            if (val == "Custom Path...") {
-                              isCustomPath = true;
-                            } else {
-                              isCustomPath = false;
-                              selectedPath = val!;
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  if (isCustomPath) ...[
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: customPathController,
-                      style: const TextStyle(fontSize: 13),
-                      decoration: const InputDecoration(
-                        labelText: "Enter System Folder Path",
-                        labelStyle: TextStyle(fontSize: 11),
-                        prefixIcon: Icon(Icons.edit_road, size: 16),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: nameController,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: const InputDecoration(
-                      labelText: "File Name Output",
-                      labelStyle: TextStyle(fontSize: 11),
-                      prefixIcon: Icon(Icons.description, size: 16),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text("File Format type:", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade700),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: fileFormat,
-                        isExpanded: true,
-                        dropdownColor: const Color(0xFF0F2027),
-                        items: ["CSV (Excel Compatible)", "TXT (PlainText)", "HTML (Audit Ready)"]
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
-                            .toList(),
-                        onChanged: (val) {
-                          setDialogState(() {
-                            fileFormat = val!;
-                            String baseName = nameController.text.split('.').first;
-                            if (fileFormat.startsWith("CSV")) {
-                              nameController.text = "$baseName.csv";
-                            } else if (fileFormat.startsWith("TXT")) {
-                              nameController.text = "$baseName.txt";
-                            } else {
-                              nameController.text = "$baseName.html";
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black),
-                onPressed: () {
-                  String finalPath = isCustomPath ? customPathController.text : selectedPath;
-                  String finalFile = nameController.text;
-                  
-                  String dataStream = "Location,Time From HW,Direction,Drift\n";
-                  for (var r in _logbookRecords) {
-                    dataStream += "${r.location},${r.timeFromHW}h,${r.direction}°,${r.drift} kts\n";
-                  }
-                  Clipboard.setData(ClipboardData(text: dataStream));
-
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: Colors.teal.shade800,
-                      content: Text("Log successfully exported & saved!\nDirectory: $finalPath$finalFile"),
-                    ),
-                  );
-                },
-                child: const Text("CONFIRM SAVE"),
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F2027),
+        title: Row(
+          children: const [
+            Icon(Icons.folder_shared, color: Color(0xFFF2C94C)),
+            SizedBox(width: 8),
+            Text("Export Manager", style: TextStyle(color: Color(0xFFF2C94C), fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: nameController,
+                style: const TextStyle(fontSize: 13),
+                decoration: const InputDecoration(
+                  labelText: "File Name Output",
+                  prefixIcon: Icon(Icons.description, size: 16),
+                ),
               ),
             ],
-          );
-        }
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black),
+            onPressed: () {
+              String dataStream = "Type,Location,Details,Result\n";
+              for (var r in _logbookRecords) {
+                dataStream += "${r.type.name.toUpperCase()},${r.location},${r.details},${r.primaryResult}\n";
+              }
+              Clipboard.setData(ClipboardData(text: dataStream));
+
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: Colors.teal.shade800,
+                  content: Text("Log successfully exported & copied to clipboard!\n$selectedPath${nameController.text}"),
+                ),
+              );
+            },
+            child: const Text("CONFIRM SAVE"),
+          ),
+        ],
       ),
     );
   }
 
   void _showPrintDialog() {
-    String selectedPrinter = "Bridge LaserJet Printer (LAN)";
-    String paperSize = "A4 (Standard)";
-    String orientation = "Portrait";
-    bool includePositions = true;
-
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFF0F2027),
-            title: Row(
-              children: const [
-                Icon(Icons.print_outlined, color: Color(0xFFF2C94C)),
-                SizedBox(width: 8),
-                Text("Print Setup", style: TextStyle(color: Color(0xFFF2C94C), fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Select Bridge Active Printer Device:", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade700),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedPrinter,
-                        isExpanded: true,
-                        dropdownColor: const Color(0xFF0F2027),
-                        items: [
-                          "Bridge LaserJet Printer (LAN)",
-                          "Captain Desk Epson (WiFi)",
-                          "Save as PDF Virtual Printer"
-                        ].map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13)))).toList(),
-                        onChanged: (val) {
-                          setDialogState(() {
-                            selectedPrinter = val!;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Paper Size:", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade700),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: paperSize,
-                                  isExpanded: true,
-                                  dropdownColor: const Color(0xFF0F2027),
-                                  items: ["A4 (Standard)", "Letter", "Legal"]
-                                      .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 11))))
-                                      .toList(),
-                                  onChanged: (val) {
-                                    setDialogState(() {
-                                      paperSize = val!;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Orientation:", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade700),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: orientation,
-                                  isExpanded: true,
-                                  dropdownColor: const Color(0xFF0F2027),
-                                  items: ["Portrait", "Landscape"]
-                                      .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 11))))
-                                      .toList(),
-                                  onChanged: (val) {
-                                    setDialogState(() {
-                                      orientation = val!;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: Checkbox(
-                          value: includePositions,
-                          activeColor: const Color(0xFFF2C94C),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              includePositions = val!;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text("Include Position metadata details", style: TextStyle(fontSize: 11, color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black),
-                onPressed: () {
-                  Navigator.pop(context);
-                  
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (context) => StatefulBuilder(
-                      builder: (context, setProgressState) {
-                        Future.delayed(const Duration(milliseconds: 1500), () {
-                          if (Navigator.canPop(context)) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: Colors.blueGrey.shade800,
-                                content: Text("Print job successfully sent to $selectedPrinter ($paperSize, $orientation)!"),
-                              ),
-                            );
-                          }
-                        });
-                        return AlertDialog(
-                          backgroundColor: const Color(0xFF0F2027),
-                          content: Row(
-                            children: const [
-                              CircularProgressIndicator(color: Color(0xFFF2C94C)),
-                              SizedBox(width: 16),
-                              Text("Spooling output stream...", style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
-                        );
-                      }
-                    ),
-                  );
-                },
-                child: const Text("PRINT DOCUMENT"),
-              ),
-            ],
-          );
-        }
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F2027),
+        title: Row(
+          children: const [
+            Icon(Icons.print_outlined, color: Color(0xFFF2C94C)),
+            SizedBox(width: 8),
+            Text("Print Setup", style: TextStyle(color: Color(0xFFF2C94C), fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text("Spooling complete logbook records for Bridge Printer..."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black),
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Print job sent to Bridge Printer!")),
+              );
+            },
+            child: const Text("PRINT LOGBOOK"),
+          ),
+        ],
       ),
     );
   }
@@ -752,7 +536,13 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           ),
         ),
         body: Container(
-          decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0F2027), Color(0xFF14262E)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF0F2027), Color(0xFF14262E)], 
+              begin: Alignment.topCenter, 
+              end: Alignment.bottomCenter
+            )
+          ),
           child: TabBarView(
             children: [
               WidgetKeepAlive(child: SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildHeightTab())),
@@ -891,13 +681,24 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _calculateHeightAndRecord,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF2C94C), 
+              foregroundColor: Colors.black, 
+              padding: const EdgeInsets.symmetric(vertical: 14), 
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+            ),
+            child: const Text("COMPUTE & RECORD HEIGHT", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
+          ),
+          const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(color: const Color(0xFF0F2027).withOpacity(0.5), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFF2C94C).withOpacity(0.4))),
             child: Column(
               children: [
-                Text("ESTIMATED TIDAL HEIGHT AT $targetTimeResult (AUTO INTERPOLATED)", style: const TextStyle(fontSize: 11, color: Colors.grey, letterSpacing: 1, fontWeight: FontWeight.w600)),
+                Text("ESTIMATED TIDAL HEIGHT AT $targetTimeResult", style: const TextStyle(fontSize: 11, color: Colors.grey, letterSpacing: 1, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Text("${estimatedHeight.toStringAsFixed(2)} m", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
               ],
@@ -1054,7 +855,7 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           ElevatedButton(
             onPressed: _calculateStandardDriftAndRecord,
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2C94C), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            child: const Text("COMPUTE & RECORD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
+            child: const Text("COMPUTE & RECORD STREAM", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
           ),
           const SizedBox(height: 16),
           Container(
@@ -1119,9 +920,9 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
           ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: _calculateAdvancedStream,
+            onPressed: _calculateAdvancedStreamAndRecord,
             style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-            child: const Text("COMPUTE INTERPOLATED STREAM", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            child: const Text("COMPUTE & RECORD ADVANCED STREAM", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           ),
           const SizedBox(height: 16),
           Container(
@@ -1191,6 +992,29 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                   itemCount: _logbookRecords.length,
                   itemBuilder: (context, index) {
                     final item = _logbookRecords[index];
+                    
+                    IconData badgeIcon;
+                    Color badgeColor;
+                    String badgeLabel;
+
+                    switch (item.type) {
+                      case LogType.height:
+                        badgeIcon = Icons.height;
+                        badgeColor = Colors.greenAccent;
+                        badgeLabel = "HEIGHT";
+                        break;
+                      case LogType.standard:
+                        badgeIcon = Icons.show_chart;
+                        badgeColor = const Color(0xFFF2C94C);
+                        badgeLabel = "STANDARD";
+                        break;
+                      case LogType.advanced:
+                        badgeIcon = Icons.table_chart;
+                        badgeColor = Colors.cyanAccent;
+                        badgeLabel = "ADVANCED";
+                        break;
+                    }
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(12),
@@ -1201,35 +1025,54 @@ class _TidalCalculatorHomePageState extends State<TidalCalculatorHomePage> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.assignment, color: Color(0xFFF2C94C), size: 24),
+                          Icon(badgeIcon, color: badgeColor, size: 24),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  item.location,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: badgeColor.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        badgeLabel,
+                                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: badgeColor),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        item.location,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "${item.timeFromHW}h from HW | Dir: ${item.direction.toStringAsFixed(0)}°",
-                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  item.details,
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey),
                                 ),
                               ],
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Text(
-                            "${item.drift.toStringAsFixed(2)} kts",
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.greenAccent),
+                            item.primaryResult,
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: badgeColor),
                           ),
-                          const SizedBox(width: 4),
                           IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.cyanAccent, size: 20),
+                            icon: const Icon(Icons.edit, color: Colors.cyanAccent, size: 18),
                             onPressed: () => _editLogRecord(item, index),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
                             onPressed: () => setState(() => _logbookRecords.removeAt(index)),
                           ),
                         ],
